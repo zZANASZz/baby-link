@@ -33,7 +33,17 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Baby-link",
+      "shortName": "Baby-link",
+      "description": "Application de suivi pour crèches",
+      "themeColor": "#7c3aed",
+      "backgroundColor": "#7c3aed",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#7c3aed"
+      }
     },
     "plugins": [
       [
