@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Baby-link",
+    "slug": "baby-link",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#7c3aed"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.babylink.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Baby-link a besoin d'accéder à vos photos pour ajouter des photos des enfants.",
+        "NSCameraUsageDescription": "Baby-link a besoin d'accéder à votre caméra pour prendre des photos des enfants."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#7c3aed"
+      },
+      "package": "com.babylink.app",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Baby-link a besoin d'accéder à vos photos.",
+          "cameraPermission": "Baby-link a besoin d'accéder à votre caméra."
+        }
+      ]
+    ]
+  }
+}
