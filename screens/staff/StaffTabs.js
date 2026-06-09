@@ -83,9 +83,10 @@ export default function StaffTabs({ navigation }) {
 
 const styles = (theme) => StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
+  flex: 1,
+  backgroundColor: theme.background,
+  ...(Platform.OS === 'web' ? { height: '100vh', overflow: 'hidden' } : {}),
+},
   safeArea: {
     backgroundColor: theme.background,
     paddingTop: Platform.OS === 'android' ? 32 : 0,
@@ -130,7 +131,9 @@ const styles = (theme) => StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
   },
-  content: {
-    flex: 1,
-  },
+content: {
+  flex: 1,
+  overflow: 'hidden',
+  ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
+},
 });
