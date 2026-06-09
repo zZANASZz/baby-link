@@ -1,6 +1,8 @@
-import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet,
+  SafeAreaView, Platform
+} from 'react-native';
 import { useTheme } from '../../lib/theme';
 
 import DashboardScreen from './DashboardScreen';
@@ -10,84 +12,125 @@ import AgendaScreen from './AgendaScreen';
 import SettingsScreen from './SettingsScreen';
 import PhotosScreen from './PhotosScreen';
 
-const Tab = createBottomTabNavigator();
+const TABS = [
+  { key: 'Dashboard', emoji: '🏠', labelKey: 'home' },
+  { key: 'Children', emoji: '👶', labelKey: 'children' },
+  { key: 'Photos', emoji: '📸', labelKey: 'photos' },
+  { key: 'Messages', emoji: '💬', labelKey: 'messages' },
+  { key: 'Agenda', emoji: '📅', labelKey: 'agenda' },
+  { key: 'Settings', emoji: '⚙️', labelKey: 'settings' },
+];
 
-function TabIcon({ emoji, focused }) {
+const SCREENS = {
+  Dashboard: DashboardScreen,
+  Children: ChildrenScreen,
+  Photos: PhotosScreen,
+  Messages: MessagesScreen,
+  Agenda: AgendaScreen,
+  Settings: SettingsScreen,
+};
+
+export default function StaffTabs({ navigation }) {
+  const { theme, t } = useTheme();
+  const [activeTab, setActiveTab] = useState('Dashboard');
+  const s = styles(theme);
+
+  const ActiveScreen = SCREENS[activeTab];
+
   return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
+    <View style={s.container}>
+      {/* Barre de navigation en haut */}
+      <SafeAreaView style={s.safeArea}>
+        <View style={s.navBar}>
+          <View style={s.navInner}>
+            {TABS.map(tab => {
+              const isActive = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[s.navItem, isActive && s.navItemActive]}
+                  onPress={() => setActiveTab(tab.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.navEmoji}>{tab.emoji}</Text>
+                  {isActive && (
+                    <Text style={s.navLabel}>{t(tab.labelKey)}</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </SafeAreaView>
+
+      {/* Contenu de l'écran actif */}
+      <View style={s.content}>
+        <ActiveScreen navigation={{
+          navigate: (screen, params) => {
+            if (SCREENS[screen]) {
+              setActiveTab(screen);
+            } else if (navigation) {
+              navigation.navigate(screen, params);
+            }
+          },
+          goBack: () => navigation?.goBack?.(),
+          ...navigation,
+        }} />
+      </View>
     </View>
   );
 }
 
-export default function StaffTabs() {
-  const { theme, t } = useTheme();
-
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: theme.navBg,
-          borderTopColor: theme.navBorder,
-          borderTopWidth: 1,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
-        },
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textSecondary,
-        tabBarLabelStyle: { fontSize: 10, marginTop: 2 },
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={{
-          tabBarLabel: t('home'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Children"
-        component={ChildrenScreen}
-        options={{
-          tabBarLabel: t('children'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👶" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Photos"
-        component={PhotosScreen}
-        options={{
-          tabBarLabel: t('photos'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📸" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{
-          tabBarLabel: t('messages'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Agenda"
-        component={AgendaScreen}
-        options={{
-          tabBarLabel: t('agenda'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📅" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: t('settings'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
-        }}
-      />
-    </Tab.Navigator>
-  );
-}
+const styles = (theme) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  safeArea: {
+    backgroundColor: theme.background,
+    paddingTop: Platform.OS === 'android' ? 32 : 0,
+  },
+  navBar: {
+    backgroundColor: theme.background,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  navInner: {
+    flexDirection: 'row',
+    backgroundColor: theme.card,
+    borderRadius: 50,
+    padding: 4,
+    gap: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  navItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 50,
+    gap: 4,
+  },
+  navItemActive: {
+    backgroundColor: theme.primary,
+  },
+  navEmoji: {
+    fontSize: 16,
+  },
+  navLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  content: {
+    flex: 1,
+  },
+});
