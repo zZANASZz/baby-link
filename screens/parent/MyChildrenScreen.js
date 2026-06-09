@@ -64,10 +64,7 @@ export default function MyChildrenScreen({ navigation }) {
         setModalCode(false); setCodeEnfant(''); setAdding(false); return;
       }
 
-      await supabase.from('enfants_parents').insert({
-        enfant_id: enfant.id, parent_id: user.id
-      });
-
+      await supabase.from('enfants_parents').insert({ enfant_id: enfant.id, parent_id: user.id });
       Alert.alert('✅', `${enfant.prenom} a été ajouté(e) !`);
       setModalCode(false); setCodeEnfant('');
       loadData();
@@ -78,9 +75,7 @@ export default function MyChildrenScreen({ navigation }) {
   const s = styles(theme);
 
   if (loading) return (
-    <View style={s.center}>
-      <Text style={s.loadingText}>{t('loading')}</Text>
-    </View>
+    <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>
   );
 
   return (
@@ -94,11 +89,16 @@ export default function MyChildrenScreen({ navigation }) {
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        showsVerticalScrollIndicator={false}
       >
         {enfants.length === 0 ? (
           <View style={s.empty}>
             <Text style={s.emptyIcon}>👶</Text>
+            <Text style={s.emptyTitle}>{t('noChildLinked')}</Text>
             <Text style={s.emptyText}>{t('addChildWithCode')}</Text>
+            <TouchableOpacity style={s.addChildBtn} onPress={() => setModalCode(true)}>
+              <Text style={s.addChildBtnText}>{t('addChildArrow')}</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={s.list}>
@@ -111,17 +111,22 @@ export default function MyChildrenScreen({ navigation }) {
                 <Avatar enfant={enfant} size={48} />
                 <View style={s.enfantInfo}>
                   <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
-                  {enfant.date_naissance && (
-                    <Text style={s.enfantAge}>
-                      Né(e) le {new Date(enfant.date_naissance).toLocaleDateString('fr-FR')}
+                  <View style={[s.sectionTag, {
+                    backgroundColor: enfant.section === 'grande' ? theme.grandeSection : theme.petiteSection,
+                  }]}>
+                    <Text style={[s.sectionTagText, {
+                      color: enfant.section === 'grande' ? theme.grandeSectionText : theme.petiteSectionText,
+                    }]}>
+                      {enfant.section === 'grande' ? t('grandeSection') : t('petiteSection')}
                     </Text>
-                  )}
+                  </View>
                 </View>
-                <Text style={s.arrow}>→</Text>
+                <Text style={s.arrow}>›</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
+        <View style={{ height: 30 }} />
       </ScrollView>
 
       <ModalWithKeyboard
@@ -155,40 +160,46 @@ export default function MyChildrenScreen({ navigation }) {
 const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
-  loadingText: { color: theme.text },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', padding: 20, paddingTop: 60
+    alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12,
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.text },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text },
   addBtn: {
-    backgroundColor: theme.primary, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 8
+    backgroundColor: theme.primary, borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 9,
   },
-  addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
   empty: { alignItems: 'center', padding: 32, marginTop: 40 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.4 },
-  emptyText: { color: theme.textSecondary, fontSize: 15, textAlign: 'center' },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 8 },
+  emptyText: { color: theme.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  addChildBtn: {
+    backgroundColor: theme.primary, borderRadius: 12,
+    paddingHorizontal: 24, paddingVertical: 12,
+  },
+  addChildBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
   list: { padding: 16 },
   enfantCard: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    marginBottom: 10, borderWidth: 1, borderColor: theme.border
+    marginBottom: 10, borderWidth: 1, borderColor: theme.border,
   },
-  enfantInfo: { flex: 1, marginLeft: 12 },
-  enfantNom: { color: theme.text, fontSize: 15, fontWeight: '600' },
-  enfantAge: { color: theme.textSecondary, fontSize: 13, marginTop: 2 },
-  arrow: { color: theme.textSecondary, fontSize: 18 },
+  enfantInfo: { flex: 1 },
+  enfantNom: { color: theme.text, fontSize: 15, fontWeight: '600', marginBottom: 6 },
+  sectionTag: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' },
+  sectionTagText: { fontSize: 11, fontWeight: '700' },
+  arrow: { color: theme.textSecondary, fontSize: 20 },
+
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: {
-    backgroundColor: theme.inputBg, borderRadius: 12, borderWidth: 1,
+    backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
     borderColor: theme.inputBorder, color: theme.text, fontSize: 18,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16, letterSpacing: 4
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16, letterSpacing: 4,
   },
-  modalBtn: {
-    backgroundColor: theme.primary, borderRadius: 12,
-    padding: 16, alignItems: 'center'
-  },
+  modalBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
   modalBtnDisabled: { backgroundColor: theme.border },
-  modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

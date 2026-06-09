@@ -79,20 +79,15 @@ export default function ParentMessagesScreen() {
 
   async function archiverMessage(conv) {
     try {
-      await supabase.from('messages_archives').insert({
-        message_id: conv.id,
-        user_id: currentUserId
-      });
+      await supabase.from('messages_archives').insert({ message_id: conv.id, user_id: currentUserId });
       loadData();
     } catch (e) { Alert.alert(t('error'), e.message); }
   }
 
   async function desarchiverMessage(conv) {
     try {
-      await supabase.from('messages_archives')
-        .delete()
-        .eq('message_id', conv.id)
-        .eq('user_id', currentUserId);
+      await supabase.from('messages_archives').delete()
+        .eq('message_id', conv.id).eq('user_id', currentUserId);
       loadData();
     } catch (e) { Alert.alert(t('error'), e.message); }
   }
@@ -128,15 +123,6 @@ export default function ParentMessagesScreen() {
       if (error) { Alert.alert(t('error'), error.message); setSending(false); return; }
       setReponse('');
       loadData();
-      setSelectedConv(prev => ({
-        ...prev,
-        replies: [...(prev.replies || []), {
-          contenu: reponse.trim(),
-          profiles: null,
-          created_at: new Date().toISOString(),
-          isParent: true
-        }]
-      }));
     } catch (e) { Alert.alert(t('error'), e.message); }
     setSending(false);
   }
@@ -146,7 +132,7 @@ export default function ParentMessagesScreen() {
   const s = styles(theme);
 
   if (loading) return (
-    <View style={s.center}><Text style={s.loadingText}>{t('loading')}</Text></View>
+    <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>
   );
 
   return (
@@ -160,6 +146,7 @@ export default function ParentMessagesScreen() {
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        showsVerticalScrollIndicator={false}
       >
         {actifs.length === 0 ? (
           <View style={s.empty}>
@@ -184,9 +171,9 @@ export default function ParentMessagesScreen() {
                   </View>
                   <Text style={s.convMessage} numberOfLines={2}>{conv.message}</Text>
                   {conv.replies?.length > 0 && (
-                    <Text style={s.convReplies}>
-                      💬 {conv.replies.length} réponse(s) de l'équipe
-                    </Text>
+                    <View style={s.replyBadge}>
+                      <Text style={s.replyBadgeText}>💬 {conv.replies.length} réponse(s)</Text>
+                    </View>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity style={s.archiveBtn} onPress={() => archiverMessage(conv)}>
@@ -198,50 +185,39 @@ export default function ParentMessagesScreen() {
         )}
 
         {archives.length > 0 && (
-          <TouchableOpacity
-            style={s.showArchivesBtn}
-            onPress={() => setShowArchives(!showArchives)}
-          >
+          <TouchableOpacity style={s.showArchivesBtn} onPress={() => setShowArchives(!showArchives)}>
             <Text style={s.showArchivesBtnText}>
               {showArchives ? '🔼 Cacher les archivés' : `🔽 Voir les archivés (${archives.length})`}
             </Text>
           </TouchableOpacity>
         )}
 
-        {showArchives && archives.length > 0 && (
-          <View style={s.list}>
-            {archives.map(conv => (
-              <View key={conv.id} style={s.convWrapper}>
-                <TouchableOpacity
-                  style={[s.convCard, s.convCardArchived]}
-                  onPress={() => { setSelectedConv(conv); setModalVisible(true); }}
-                >
-                  <View style={s.convHeader}>
-                    <Text style={s.convEnfant}>
-                      {conv.enfants ? `À propos de ${conv.enfants.prenom}` : 'Message général'}
-                    </Text>
-                    <Text style={s.convDate}>
-                      {new Date(conv.created_at).toLocaleDateString('fr-FR')}
-                    </Text>
-                  </View>
-                  <Text style={s.convMessage} numberOfLines={2}>{conv.message}</Text>
-                  {conv.replies?.length > 0 && (
-                    <Text style={s.convReplies}>
-                      💬 {conv.replies.length} réponse(s) de l'équipe
-                    </Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity style={s.desarchiveBtn} onPress={() => desarchiverMessage(conv)}>
-                  <Text style={s.desarchiveBtnText}>Désarchiver</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+        {showArchives && archives.map(conv => (
+          <View key={conv.id} style={[s.list, { paddingTop: 0 }]}>
+            <View style={s.convWrapper}>
+              <TouchableOpacity
+                style={[s.convCard, { opacity: 0.6 }]}
+                onPress={() => { setSelectedConv(conv); setModalVisible(true); }}
+              >
+                <View style={s.convHeader}>
+                  <Text style={s.convEnfant}>
+                    {conv.enfants ? `À propos de ${conv.enfants.prenom}` : 'Message général'}
+                  </Text>
+                  <Text style={s.convDate}>{new Date(conv.created_at).toLocaleDateString('fr-FR')}</Text>
+                </View>
+                <Text style={s.convMessage} numberOfLines={2}>{conv.message}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.desarchiveBtn} onPress={() => desarchiverMessage(conv)}>
+                <Text style={s.desarchiveBtnText}>Désarchiver</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
+        ))}
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
+      {/* Modal conversation */}
       <ModalWithKeyboard
         visible={modalVisible}
         onClose={() => { setModalVisible(false); setReponse(''); }}
@@ -251,21 +227,13 @@ export default function ParentMessagesScreen() {
           <View style={s.msgParent}>
             <Text style={s.msgParentLabel}>Vous</Text>
             <Text style={s.msgParentText}>{selectedConv?.message}</Text>
-            <Text style={s.msgDate}>
-              {selectedConv && new Date(selectedConv.created_at).toLocaleDateString('fr-FR')}
-            </Text>
+            <Text style={s.msgDate}>{selectedConv && new Date(selectedConv.created_at).toLocaleDateString('fr-FR')}</Text>
           </View>
           {(selectedConv?.replies || []).map((reply, i) => (
-            <View key={i} style={reply.isParent ? s.msgParent : s.msgReply}>
-              <Text style={reply.isParent ? s.msgParentLabel : s.msgReplyLabel}>
-                {reply.isParent ? 'Vous' : "L'équipe"}
-              </Text>
-              <Text style={reply.isParent ? s.msgParentText : s.msgReplyText}>
-                {reply.contenu}
-              </Text>
-              <Text style={s.msgDate}>
-                {new Date(reply.created_at).toLocaleDateString('fr-FR')}
-              </Text>
+            <View key={i} style={s.msgReply}>
+              <Text style={s.msgReplyLabel}>L'équipe</Text>
+              <Text style={s.msgReplyText}>{reply.contenu}</Text>
+              <Text style={s.msgDate}>{new Date(reply.created_at).toLocaleDateString('fr-FR')}</Text>
             </View>
           ))}
         </ScrollView>
@@ -279,7 +247,7 @@ export default function ParentMessagesScreen() {
             multiline
           />
           <TouchableOpacity
-            style={s.sendBtn}
+            style={[s.sendBtn, (!reponse.trim() || sending) && { opacity: 0.5 }]}
             onPress={envoyerReponse}
             disabled={sending || !reponse.trim()}
           >
@@ -288,6 +256,7 @@ export default function ParentMessagesScreen() {
         </View>
       </ModalWithKeyboard>
 
+      {/* Modal nouveau message */}
       <ModalWithKeyboard
         visible={modalNew}
         onClose={() => { setModalNew(false); setMessage(''); setSelectedEnfant(null); }}
@@ -338,88 +307,96 @@ const styles = (theme) => StyleSheet.create({
   loadingText: { color: theme.text },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', padding: 20, paddingTop: 60
+    alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12,
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.text },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text },
   addBtn: {
-    backgroundColor: theme.primary, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 8
+    backgroundColor: theme.primary, borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 9,
   },
-  addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15 },
-  list: { paddingHorizontal: 16 },
+
+  list: { paddingHorizontal: 16, paddingTop: 8 },
   convWrapper: { marginBottom: 10 },
   convCard: {
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: theme.border
+    borderWidth: 1, borderColor: theme.border,
   },
   convCardWithReply: { borderColor: theme.primary },
-  convCardArchived: { opacity: 0.6 },
   convHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  convEnfant: { color: theme.text, fontSize: 14, fontWeight: '600' },
-  convDate: { color: theme.textSecondary, fontSize: 12 },
-  convMessage: { color: theme.textSecondary, fontSize: 14 },
-  convReplies: { color: theme.primary, fontSize: 12, marginTop: 8 },
+  convEnfant: { color: theme.text, fontSize: 13, fontWeight: '700' },
+  convDate: { color: theme.textSecondary, fontSize: 11 },
+  convMessage: { color: theme.textSecondary, fontSize: 13 },
+  replyBadge: {
+    marginTop: 8, backgroundColor: theme.primarySoft,
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start',
+  },
+  replyBadgeText: { color: theme.primary, fontSize: 11, fontWeight: '700' },
+
   archiveBtn: {
-    backgroundColor: theme.border, borderRadius: 10,
-    padding: 8, alignItems: 'center', marginTop: 4
+    backgroundColor: theme.background, borderRadius: 10, borderWidth: 1,
+    borderColor: theme.border, padding: 8, alignItems: 'center', marginTop: 4,
   },
-  archiveBtnText: { color: theme.textSecondary, fontSize: 13, fontWeight: '600' },
+  archiveBtnText: { color: theme.textSecondary, fontSize: 12, fontWeight: '600' },
   desarchiveBtn: {
-    backgroundColor: theme.primaryLight, borderRadius: 10,
-    padding: 8, alignItems: 'center', marginTop: 4
+    backgroundColor: theme.primarySoft, borderRadius: 10, borderWidth: 1,
+    borderColor: theme.primaryLight, padding: 8, alignItems: 'center', marginTop: 4,
   },
-  desarchiveBtnText: { color: theme.primary, fontSize: 13, fontWeight: '600' },
+  desarchiveBtnText: { color: theme.primary, fontSize: 12, fontWeight: '600' },
+
   showArchivesBtn: {
-    marginHorizontal: 16, marginBottom: 8,
-    padding: 12, alignItems: 'center',
-    backgroundColor: theme.card, borderRadius: 12,
-    borderWidth: 1, borderColor: theme.border
+    marginHorizontal: 16, marginBottom: 8, padding: 12, alignItems: 'center',
+    backgroundColor: theme.card, borderRadius: 12, borderWidth: 1, borderColor: theme.border,
   },
-  showArchivesBtnText: { color: theme.textSecondary, fontSize: 14, fontWeight: '600' },
-  thread: { maxHeight: 300, marginBottom: 12 },
+  showArchivesBtnText: { color: theme.textSecondary, fontSize: 13, fontWeight: '600' },
+
+  thread: { maxHeight: 280, marginBottom: 12 },
   msgParent: {
-    backgroundColor: theme.primaryLight, borderRadius: 12,
-    padding: 12, marginBottom: 8, marginLeft: 32
+    backgroundColor: theme.primarySoft, borderRadius: 12,
+    padding: 12, marginBottom: 8, marginLeft: 24,
   },
-  msgParentLabel: { color: theme.primary, fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  msgParentText: { color: theme.text, fontSize: 14 },
+  msgParentLabel: { color: theme.primary, fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  msgParentText: { color: theme.text, fontSize: 13 },
   msgReply: {
     backgroundColor: theme.background, borderRadius: 12,
-    padding: 12, marginBottom: 8, marginRight: 32,
-    borderWidth: 1, borderColor: theme.border
+    padding: 12, marginBottom: 8, marginRight: 24,
+    borderWidth: 1, borderColor: theme.border,
   },
-  msgReplyLabel: { color: theme.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  msgReplyText: { color: theme.text, fontSize: 14 },
-  msgDate: { color: theme.textSecondary, fontSize: 11, marginTop: 4 },
+  msgReplyLabel: { color: theme.textSecondary, fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  msgReplyText: { color: theme.text, fontSize: 13 },
+  msgDate: { color: theme.textSecondary, fontSize: 10, marginTop: 4 },
+
   replyContainer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   replyInput: {
     flex: 1, backgroundColor: theme.inputBg, borderRadius: 12,
     borderWidth: 1, borderColor: theme.inputBorder, color: theme.text,
-    fontSize: 15, paddingHorizontal: 14, paddingVertical: 10, maxHeight: 100
+    fontSize: 14, paddingHorizontal: 12, paddingVertical: 10, maxHeight: 100,
   },
   sendBtn: {
     backgroundColor: theme.primary, borderRadius: 12,
-    width: 44, height: 44, justifyContent: 'center', alignItems: 'center'
+    width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
   },
-  sendBtnText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  sendBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   enfantChip: {
     borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
     borderWidth: 1, borderColor: theme.border,
-    backgroundColor: theme.card, marginRight: 8
+    backgroundColor: theme.card, marginRight: 8,
   },
   enfantChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   enfantChipText: { color: theme.textSecondary, fontSize: 13 },
-  enfantChipTextActive: { color: '#fff', fontWeight: '600' },
+  enfantChipTextActive: { color: '#fff', fontWeight: '700' },
   input: {
-    backgroundColor: theme.inputBg, borderRadius: 12, borderWidth: 1,
+    backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
     borderColor: theme.inputBorder, color: theme.text, fontSize: 15,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   modalBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
   modalBtnDisabled: { backgroundColor: theme.border },
-  modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

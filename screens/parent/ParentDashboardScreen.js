@@ -90,11 +90,7 @@ export default function ParentDashboardScreen({ navigation }) {
         setModalCodeEnfant(false); setCodeEnfant(''); setSending(false); return;
       }
 
-      const { error: lienError } = await supabase
-        .from('enfants_parents').insert({ enfant_id: enfant.id, parent_id: user.id });
-
-      if (lienError) { Alert.alert(t('error'), lienError.message); setSending(false); return; }
-
+      await supabase.from('enfants_parents').insert({ enfant_id: enfant.id, parent_id: user.id });
       Alert.alert('✅', `Vous êtes maintenant lié(e) à ${enfant.prenom} !`);
       setModalCodeEnfant(false); setCodeEnfant('');
       loadData();
@@ -127,43 +123,49 @@ export default function ParentDashboardScreen({ navigation }) {
   const s = styles(theme);
 
   if (loading) return (
-    <View style={s.center}><Text style={s.loadingText}>{t('loading')}</Text></View>
+    <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>
   );
 
   return (
     <View style={s.container}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={s.header}>
-          <Text style={s.date}>{formatToday()}</Text>
-          <Text style={s.crecheName}>{creche?.nom || 'Ma crèche'}</Text>
+          <View>
+            <Text style={s.date}>{formatToday()}</Text>
+            <Text style={s.bonjour}>Bonjour {profile?.prenom} 👋</Text>
+            <Text style={s.crecheName}>{creche?.nom || 'Ma crèche'}</Text>
+          </View>
+          <View style={s.avatar}>
+            <Text style={s.avatarText}>{profile?.prenom?.charAt(0)?.toUpperCase() || '?'}</Text>
+          </View>
         </View>
 
+        {/* Stats */}
         <View style={s.statsGrid}>
           <TouchableOpacity
             style={[s.statCard, { backgroundColor: theme.cardStat1 }]}
-            onPress={() => { if (enfants.length === 0) setModalCodeEnfant(true); else navigation.navigate('MyChildren'); }}
+            onPress={() => enfants.length === 0 ? setModalCodeEnfant(true) : navigation.navigate('MyChildren')}
           >
-            <View style={[s.statIcon, { backgroundColor: theme.primary + '30' }]}>
-              <Text style={s.statEmoji}>👶</Text>
-            </View>
-            <Text style={s.statNumber}>{stats.enfants}</Text>
-            <Text style={s.statLabel}>{enfants.length === 0 ? t('addChildArrow') : t('myChildren')}</Text>
+            <Text style={s.statEmoji}>👶</Text>
+            <Text style={[s.statNumber, { color: theme.primary }]}>{stats.enfants}</Text>
+            <Text style={s.statLabel}>{enfants.length === 0 ? 'Ajouter un enfant' : t('myChildren')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[s.statCard, { backgroundColor: theme.cardStat2 }]}
-            onPress={() => { if (enfants.length === 0) Alert.alert('Info', 'Ajoutez d\'abord un enfant.'); else navigation.navigate('MyChildren'); }}
+            onPress={() => enfants.length > 0 && navigation.navigate('MyChildren')}
           >
-            <View style={[s.statIcon, { backgroundColor: '#10b98130' }]}>
-              <Text style={s.statEmoji}>📋</Text>
-            </View>
-            <Text style={s.statNumber}>{stats.rapports}</Text>
+            <Text style={s.statEmoji}>📋</Text>
+            <Text style={[s.statNumber, { color: theme.success }]}>{stats.rapports}</Text>
             <Text style={s.statLabel}>Rapports du jour</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Menu du jour */}
         {menuDuJour && (
           <View style={s.menuCard}>
             <Text style={s.menuTitle}>{t('menuOfDay')}</Text>
@@ -171,17 +173,19 @@ export default function ParentDashboardScreen({ navigation }) {
           </View>
         )}
 
+        {/* Enfants */}
         {enfants.length === 0 ? (
           <View style={s.emptyContainer}>
             <Text style={s.emptyIcon}>👶</Text>
             <Text style={s.emptyTitle}>{t('noChildLinked')}</Text>
             <Text style={s.emptyText}>{t('addChildWithCode')}</Text>
-            <TouchableOpacity style={s.addChildLink} onPress={() => setModalCodeEnfant(true)}>
-              <Text style={s.addChildLinkText}>{t('addChildArrow')}</Text>
+            <TouchableOpacity style={s.addChildBtn} onPress={() => setModalCodeEnfant(true)}>
+              <Text style={s.addChildBtnText}>{t('addChildArrow')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={s.childrenList}>
+            <Text style={s.sectionTitle}>Mes enfants</Text>
             {enfants.map(enfant => (
               <TouchableOpacity
                 key={enfant.id}
@@ -189,22 +193,32 @@ export default function ParentDashboardScreen({ navigation }) {
                 onPress={() => navigation.navigate('MyChildren')}
               >
                 <Avatar enfant={enfant} size={44} />
-                <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
-                <Text style={s.arrow}>→</Text>
+                <View style={s.enfantInfo}>
+                  <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
+                  <Text style={s.enfantSection}>
+                    {enfant.section === 'grande' ? t('grandeSection') : t('petiteSection')}
+                  </Text>
+                </View>
+                <Text style={s.arrow}>›</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
+        {/* Bouton message */}
         <TouchableOpacity style={s.messageBtn} onPress={() => setModalMessage(true)}>
           <Text style={s.messageBtnIcon}>✉️</Text>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={s.messageBtnTitle}>{t('sendMessage')}</Text>
             <Text style={s.messageBtnSubtitle}>{t('sendMessageSubtitle')}</Text>
           </View>
+          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 18 }}>›</Text>
         </TouchableOpacity>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
 
+      {/* Modal ajouter enfant */}
       <ModalWithKeyboard
         visible={modalCodeEnfant}
         onClose={() => { setModalCodeEnfant(false); setCodeEnfant(''); }}
@@ -230,6 +244,7 @@ export default function ParentDashboardScreen({ navigation }) {
         </TouchableOpacity>
       </ModalWithKeyboard>
 
+      {/* Modal message */}
       <ModalWithKeyboard
         visible={modalMessage}
         onClose={() => setModalMessage(false)}
@@ -259,53 +274,78 @@ export default function ParentDashboardScreen({ navigation }) {
 const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
-  loadingText: { color: theme.text },
-  header: { padding: 20, paddingTop: 60 },
-  date: { fontSize: 13, color: theme.textSecondary, marginBottom: 4 },
-  crecheName: { fontSize: 22, fontWeight: 'bold', color: theme.text },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12, marginBottom: 8, marginTop: 8 },
-  statCard: { width: '47%', borderRadius: 16, padding: 16, minHeight: 110, justifyContent: 'center' },
-  statIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  statEmoji: { fontSize: 20 },
-  statNumber: { fontSize: 28, fontWeight: 'bold', color: theme.text },
-  statLabel: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingHorizontal: 16, paddingTop: 56, paddingBottom: 16,
+  },
+  date: { fontSize: 12, color: theme.textSecondary, marginBottom: 2 },
+  bonjour: { fontSize: 20, fontWeight: '700', color: theme.text },
+  crecheName: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+  avatar: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: theme.primaryLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarText: { fontSize: 16, fontWeight: '700', color: theme.primary },
+
+  statsGrid: {
+    flexDirection: 'row', paddingHorizontal: 16, gap: 10, marginBottom: 14,
+  },
+  statCard: {
+    flex: 1, borderRadius: 16, padding: 16, alignItems: 'center', minHeight: 100,
+  },
+  statEmoji: { fontSize: 22, marginBottom: 6 },
+  statNumber: { fontSize: 28, fontWeight: '700', lineHeight: 32 },
+  statLabel: { fontSize: 11, color: theme.textSecondary, marginTop: 3, fontWeight: '500', textAlign: 'center' },
+
   menuCard: {
-    marginHorizontal: 16, marginBottom: 16,
+    marginHorizontal: 16, marginBottom: 14,
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: theme.border,
-    borderLeftWidth: 4, borderLeftColor: theme.primary
+    borderLeftWidth: 4, borderLeftColor: theme.primary,
   },
-  menuTitle: { fontSize: 15, fontWeight: 'bold', color: theme.text, marginBottom: 8 },
+  menuTitle: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 8 },
   menuText: { color: theme.textSecondary, fontSize: 14, lineHeight: 22 },
+
   emptyContainer: { alignItems: 'center', padding: 32, marginTop: 8 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.4 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: theme.text, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginBottom: 16 },
-  addChildLink: { padding: 8 },
-  addChildLinkText: { color: theme.primary, fontSize: 15, fontWeight: '600' },
-  childrenList: { padding: 16 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 8 },
+  emptyText: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginBottom: 20 },
+  addChildBtn: {
+    backgroundColor: theme.primary, borderRadius: 12,
+    paddingHorizontal: 24, paddingVertical: 12,
+  },
+  addChildBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  childrenList: { paddingHorizontal: 16, marginBottom: 14 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 10 },
   enfantCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    marginBottom: 10, borderWidth: 1, borderColor: theme.border
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: theme.card, borderRadius: 16, padding: 14,
+    marginBottom: 10, borderWidth: 1, borderColor: theme.border,
   },
-  enfantNom: { flex: 1, color: theme.text, fontSize: 15, fontWeight: '600', marginLeft: 12 },
-  arrow: { color: theme.textSecondary, fontSize: 18 },
+  enfantInfo: { flex: 1 },
+  enfantNom: { color: theme.text, fontSize: 14, fontWeight: '600' },
+  enfantSection: { fontSize: 11, color: theme.textSecondary, marginTop: 2 },
+  arrow: { color: theme.textSecondary, fontSize: 20 },
+
   messageBtn: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: theme.primary, borderRadius: 16,
-    margin: 16, padding: 18, gap: 14
+    marginHorizontal: 16, padding: 18,
   },
-  messageBtnIcon: { fontSize: 24 },
-  messageBtnTitle: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
+  messageBtnIcon: { fontSize: 22 },
+  messageBtnTitle: { color: '#fff', fontSize: 14, fontWeight: '700' },
   messageBtnSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
+
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: {
-    backgroundColor: theme.inputBg, borderRadius: 12, borderWidth: 1,
+    backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
     borderColor: theme.inputBorder, color: theme.text, fontSize: 15,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   modalBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
   modalBtnDisabled: { backgroundColor: theme.border },
-  modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

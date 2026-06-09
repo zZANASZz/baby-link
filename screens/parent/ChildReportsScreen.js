@@ -7,19 +7,17 @@ import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import { useRealtime } from '../../lib/useRealtime';
 
-function StarDisplay({ value }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 2 }}>
-      {[1, 2, 3, 4, 5].map(star => (
-        <Text key={star} style={{ fontSize: 16, opacity: star <= value ? 1 : 0.2 }}>⭐</Text>
-      ))}
-    </View>
-  );
-}
+const HUMEUR_MAP = {
+  super: { emoji: '😄', label: 'Super', color: '#5caa8a' },
+  bien: { emoji: '🙂', label: 'Bien', color: '#5b8fcf' },
+  neutre: { emoji: '😐', label: 'Neutre', color: '#7a8fa8' },
+  difficile: { emoji: '😢', label: 'Difficile', color: '#e05c5c' },
+};
 
 export default function ChildReportsScreen({ route, navigation }) {
   const { theme, t } = useTheme();
   const { enfant } = route.params;
+  const isBebe = enfant.section === 'petite' || !enfant.section;
   const [rapports, setRapports] = useState([]);
   const [stock, setStock] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,21 +39,15 @@ export default function ChildReportsScreen({ route, navigation }) {
   async function loadData() {
     try {
       const { data: raps } = await supabase
-        .from('rapports')
-        .select('*')
-        .eq('enfant_id', enfant.id)
-        .eq('brouillon', false)
-        .order('date', { ascending: false })
-        .limit(30);
+        .from('rapports').select('*')
+        .eq('enfant_id', enfant.id).eq('brouillon', false)
+        .order('date', { ascending: false }).limit(30);
       setRapports(raps || []);
 
       const mois = getMoisActuel();
       const { data: stockData } = await supabase
-        .from('stock_mensuel')
-        .select('*')
-        .eq('enfant_id', enfant.id)
-        .eq('mois', mois)
-        .maybeSingle();
+        .from('stock_mensuel').select('*')
+        .eq('enfant_id', enfant.id).eq('mois', mois).maybeSingle();
       setStock(stockData);
     } catch (e) { console.log(e); }
     setLoading(false);
@@ -67,46 +59,114 @@ export default function ChildReportsScreen({ route, navigation }) {
   const anciens = rapports.filter(r => r.date !== today);
 
   function RapportCard({ rapport }) {
+    const humeurInfo = rapport.humeur ? HUMEUR_MAP[rapport.humeur] : null;
+    let repasBebe = null;
+    let siestesBebe = null;
+
+    try {
+      if (rapport.repas_bebe) repasBebe = JSON.parse(rapport.repas_bebe);
+      if (rapport.siestes_bebe) siestesBebe = JSON.parse(rapport.siestes_bebe);
+    } catch (e) {}
+
     return (
       <View style={s.rapportCard}>
         <Text style={s.rapportDate}>
-          {new Date(rapport.date).toLocaleDateString('fr-FR', {
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-          })}
+          {new Date(rapport.date + 'T12:00:00').toLocaleDateString('fr-FR', {
+            weekday: 'long', day: 'numeric', month: 'long'
+          }).replace(/^\w/, c => c.toUpperCase())}
         </Text>
 
-        {(rapport.repas_midi_stars > 0 || rapport.repas_midi_note) && (
-          <View style={s.itemSection}>
-            <Text style={s.itemTitle}>{t('lunchMeal')}</Text>
-            {rapport.repas_midi_stars > 0 && <StarDisplay value={rapport.repas_midi_stars} />}
-            {rapport.repas_midi_note && <Text style={s.itemNote}>{rapport.repas_midi_note}</Text>}
-          </View>
-        )}
-
-        {(rapport.repas_aprem_stars > 0 || rapport.repas_aprem_note) && (
-          <View style={s.itemSection}>
-            <Text style={s.itemTitle}>{t('afternoonMeal')}</Text>
-            {rapport.repas_aprem_stars > 0 && <StarDisplay value={rapport.repas_aprem_stars} />}
-            {rapport.repas_aprem_note && <Text style={s.itemNote}>{rapport.repas_aprem_note}</Text>}
-          </View>
-        )}
-
-        {(rapport.humeur_stars > 0 || rapport.humeur_note) && (
+        {/* Humeur */}
+        {humeurInfo && (
           <View style={s.itemSection}>
             <Text style={s.itemTitle}>{t('mood')}</Text>
-            {rapport.humeur_stars > 0 && <StarDisplay value={rapport.humeur_stars} />}
+            <View style={[s.humeurBadge, { backgroundColor: humeurInfo.color + '20' }]}>
+              <Text style={s.humeurEmoji}>{humeurInfo.emoji}</Text>
+              <Text style={[s.humeurLabel, { color: humeurInfo.color }]}>{humeurInfo.label}</Text>
+            </View>
             {rapport.humeur_note && <Text style={s.itemNote}>{rapport.humeur_note}</Text>}
           </View>
         )}
 
-        {(rapport.sieste_stars > 0 || rapport.sommeil) && (
+        {/* Repas grands */}
+        {!isBebe && (rapport.repas_midi_stars || rapport.repas_midi_note) && (
+          <View style={s.itemSection}>
+            <Text style={s.itemTitle}>{t('lunchMeal')}</Text>
+            {rapport.repas_midi_stars && (
+              <View style={[s.quantiteBadge, { backgroundColor: theme.successLight }]}>
+                <Text style={[s.quantiteText, { color: theme.success }]}>{rapport.repas_midi_stars}</Text>
+              </View>
+            )}
+            {rapport.repas_midi_note && <Text style={s.itemNote}>{rapport.repas_midi_note}</Text>}
+          </View>
+        )}
+
+        {!isBebe && (rapport.repas_aprem_stars || rapport.repas_aprem_note) && (
+          <View style={s.itemSection}>
+            <Text style={s.itemTitle}>{t('afternoonMeal')}</Text>
+            {rapport.repas_aprem_stars && (
+              <View style={[s.quantiteBadge, { backgroundColor: theme.successLight }]}>
+                <Text style={[s.quantiteText, { color: theme.success }]}>{rapport.repas_aprem_stars}</Text>
+              </View>
+            )}
+            {rapport.repas_aprem_note && <Text style={s.itemNote}>{rapport.repas_aprem_note}</Text>}
+          </View>
+        )}
+
+        {/* Sieste grands */}
+        {!isBebe && (rapport.sieste_debut || rapport.sommeil) && (
           <View style={s.itemSection}>
             <Text style={s.itemTitle}>{t('nap')}</Text>
-            {rapport.sieste_stars > 0 && <StarDisplay value={rapport.sieste_stars} />}
+            {rapport.sieste_debut && (
+              <View style={[s.siesteBadge, { backgroundColor: theme.primarySoft }]}>
+                <Text style={[s.siesteTime, { color: theme.primary }]}>
+                  {rapport.sieste_debut}{rapport.sieste_fin ? ` → ${rapport.sieste_fin}` : ''}
+                </Text>
+              </View>
+            )}
             {rapport.sommeil && <Text style={s.itemNote}>{rapport.sommeil}</Text>}
           </View>
         )}
 
+        {/* Repas bébé */}
+        {isBebe && repasBebe && repasBebe.length > 0 && (
+          <View style={s.itemSection}>
+            <Text style={s.itemTitle}>🍼 Repas ({repasBebe.length})</Text>
+            {repasBebe.map((r, i) => (
+              <View key={i} style={s.bebeItem}>
+                <View style={s.bebeItemHeader}>
+                  {r.heure ? <Text style={s.bebeItemTime}>{r.heure}</Text> : null}
+                  <View style={[s.typeBadge, { backgroundColor: theme.primarySoft }]}>
+                    <Text style={[s.typeBadgeText, { color: theme.primary }]}>{r.type}</Text>
+                  </View>
+                  {r.quantite ? <Text style={s.bebeItemQty}>{r.quantite} ml</Text> : null}
+                </View>
+                {r.note ? <Text style={s.itemNote}>{r.note}</Text> : null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Siestes bébé */}
+        {isBebe && siestesBebe && siestesBebe.length > 0 && (
+          <View style={s.itemSection}>
+            <Text style={s.itemTitle}>😴 Siestes ({siestesBebe.length})</Text>
+            {siestesBebe.map((si, i) => (
+              <View key={i} style={s.bebeItem}>
+                {(si.debut || si.fin) && (
+                  <View style={[s.siesteBadge, { backgroundColor: theme.primarySoft }]}>
+                    <Text style={[s.siesteTime, { color: theme.primary }]}>
+                      {si.debut || '?'} → {si.fin || '?'}
+                    </Text>
+                  </View>
+                )}
+                {si.note ? <Text style={s.itemNote}>{si.note}</Text> : null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Santé */}
         {rapport.sante && (
           <View style={s.itemSection}>
             <Text style={s.itemTitle}>{t('healthNotes')}</Text>
@@ -114,9 +174,11 @@ export default function ChildReportsScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Notes générales */}
         {rapport.commentaire && (
           <View style={s.commentBox}>
-            <Text style={s.commentText}>📝 {rapport.commentaire}</Text>
+            <Text style={s.commentTitle}>📝 {t('generalNotes')}</Text>
+            <Text style={s.commentText}>{rapport.commentaire}</Text>
           </View>
         )}
       </View>
@@ -134,14 +196,26 @@ export default function ChildReportsScreen({ route, navigation }) {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={s.backText}>{t('back')}</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+          <Text style={s.backText}>← Retour</Text>
         </TouchableOpacity>
-        <Text style={s.title}>{enfant.prenom} {enfant.nom}</Text>
+        <View style={s.headerInfo}>
+          <Text style={s.title}>{enfant.prenom} {enfant.nom}</Text>
+          <View style={[s.sectionTag, {
+            backgroundColor: isBebe ? theme.petiteSection : theme.grandeSection,
+          }]}>
+            <Text style={[s.sectionTagText, {
+              color: isBebe ? theme.petiteSectionText : theme.grandeSectionText,
+            }]}>
+              {isBebe ? t('petiteSection') : t('grandeSection')}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        showsVerticalScrollIndicator={false}
       >
         {/* Rapport du jour */}
         <View style={s.section}>
@@ -161,27 +235,19 @@ export default function ChildReportsScreen({ route, navigation }) {
           <Text style={s.moisLabel}>{getMoisLabel()}</Text>
           {stock ? (
             <View style={s.stockCard}>
-              <View style={s.stockRow}>
-                <Text style={s.stockEmoji}>🩲</Text>
-                <Text style={s.stockLabel}>Langes</Text>
-                <View style={s.stockBadge}>
-                  <Text style={s.stockValue}>{stock.langes || 0}</Text>
+              {[
+                { emoji: '🩲', label: 'Langes', value: stock.langes },
+                { emoji: '🧻', label: 'Lingettes', value: stock.lingettes },
+                { emoji: '🤧', label: 'Mouchoirs', value: stock.mouchoirs },
+              ].map((item, i) => (
+                <View key={i} style={[s.stockRow, i === 2 && { borderBottomWidth: 0, marginBottom: 0 }]}>
+                  <Text style={s.stockEmoji}>{item.emoji}</Text>
+                  <Text style={s.stockLabel}>{item.label}</Text>
+                  <View style={[s.stockBadge, { backgroundColor: theme.primaryLight }]}>
+                    <Text style={[s.stockValue, { color: theme.primary }]}>{item.value || 0}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={s.stockRow}>
-                <Text style={s.stockEmoji}>🧻</Text>
-                <Text style={s.stockLabel}>Lingettes</Text>
-                <View style={s.stockBadge}>
-                  <Text style={s.stockValue}>{stock.lingettes || 0}</Text>
-                </View>
-              </View>
-              <View style={s.stockRow}>
-                <Text style={s.stockEmoji}>🤧</Text>
-                <Text style={s.stockLabel}>Mouchoirs</Text>
-                <View style={s.stockBadge}>
-                  <Text style={s.stockValue}>{stock.mouchoirs || 0}</Text>
-                </View>
-              </View>
+              ))}
             </View>
           ) : (
             <View style={s.emptyCard}>
@@ -210,47 +276,86 @@ const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
-  header: { padding: 20, paddingTop: 60 },
-  backText: { color: theme.text, fontSize: 15, marginBottom: 12 },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.text },
+
+  header: {
+    backgroundColor: theme.card, borderBottomWidth: 1, borderBottomColor: theme.border,
+    paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12,
+  },
+  backBtn: { marginBottom: 8 },
+  backText: { color: theme.primary, fontSize: 14, fontWeight: '600' },
+  headerInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  title: { fontSize: 18, fontWeight: '700', color: theme.text },
+  sectionTag: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  sectionTagText: { fontSize: 11, fontWeight: '700' },
+
   section: { padding: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: theme.text, marginBottom: 4 },
-  moisLabel: { fontSize: 13, color: theme.textSecondary, marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 4 },
+  moisLabel: { fontSize: 12, color: theme.textSecondary, marginBottom: 12 },
+
   rapportCard: {
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    marginBottom: 12, borderWidth: 1, borderColor: theme.border
+    marginBottom: 12, borderWidth: 1, borderColor: theme.border,
   },
-  rapportDate: { fontSize: 14, fontWeight: '600', color: theme.primary, marginBottom: 12 },
+  rapportDate: { fontSize: 13, fontWeight: '700', color: theme.primary, marginBottom: 14 },
+
   itemSection: {
     marginBottom: 12, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: theme.border
+    borderBottomWidth: 1, borderBottomColor: theme.border,
   },
-  itemTitle: { fontSize: 14, fontWeight: '600', color: theme.text, marginBottom: 6 },
-  itemNote: { color: theme.textSecondary, fontSize: 13, marginTop: 4, fontStyle: 'italic' },
+  itemTitle: { fontSize: 13, fontWeight: '700', color: theme.text, marginBottom: 8 },
+  itemNote: { color: theme.textSecondary, fontSize: 13, marginTop: 6, fontStyle: 'italic' },
+
+  humeurBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start',
+  },
+  humeurEmoji: { fontSize: 18 },
+  humeurLabel: { fontSize: 13, fontWeight: '700' },
+
+  quantiteBadge: {
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, alignSelf: 'flex-start',
+  },
+  quantiteText: { fontSize: 12, fontWeight: '700' },
+
+  siesteBadge: {
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start',
+  },
+  siesteTime: { fontSize: 13, fontWeight: '700' },
+
+  bebeItem: {
+    backgroundColor: theme.background, borderRadius: 10,
+    padding: 10, marginBottom: 6, borderWidth: 1, borderColor: theme.border,
+  },
+  bebeItemHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  bebeItemTime: { fontSize: 12, color: theme.textSecondary, fontWeight: '600' },
+  bebeItemQty: { fontSize: 12, color: theme.text, fontWeight: '600' },
+  typeBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  typeBadgeText: { fontSize: 11, fontWeight: '700' },
+
   commentBox: {
     backgroundColor: theme.background, borderRadius: 10,
-    padding: 10, borderLeftWidth: 3, borderLeftColor: theme.primary, marginTop: 4
+    padding: 12, borderLeftWidth: 3, borderLeftColor: theme.primary, marginTop: 4,
   },
+  commentTitle: { fontSize: 12, fontWeight: '700', color: theme.text, marginBottom: 4 },
   commentText: { color: theme.textSecondary, fontSize: 13 },
+
   stockCard: {
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: theme.border
+    borderWidth: 1, borderColor: theme.border,
   },
   stockRow: {
     flexDirection: 'row', alignItems: 'center',
     marginBottom: 12, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: theme.border
+    borderBottomWidth: 1, borderBottomColor: theme.border,
   },
-  stockEmoji: { fontSize: 22, marginRight: 10 },
-  stockLabel: { flex: 1, color: theme.text, fontSize: 15 },
-  stockBadge: {
-    backgroundColor: theme.primaryLight, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 6
-  },
-  stockValue: { color: theme.primary, fontSize: 16, fontWeight: 'bold' },
+  stockEmoji: { fontSize: 20, marginRight: 10 },
+  stockLabel: { flex: 1, color: theme.text, fontSize: 14, fontWeight: '500' },
+  stockBadge: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 },
+  stockValue: { fontSize: 15, fontWeight: '700' },
+
   emptyCard: {
     backgroundColor: theme.card, borderRadius: 16, padding: 20,
-    alignItems: 'center', borderWidth: 1, borderColor: theme.border
+    alignItems: 'center', borderWidth: 1, borderColor: theme.border,
   },
   emptyText: { color: theme.textSecondary, fontSize: 14 },
 });

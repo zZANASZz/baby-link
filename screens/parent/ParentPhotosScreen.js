@@ -52,8 +52,7 @@ export default function ParentPhotosScreen() {
   async function loadPhotos(enfantId) {
     try {
       const { data } = await supabase
-        .from('photos_enfants')
-        .select('*')
+        .from('photos_enfants').select('*')
         .eq('enfant_id', enfantId)
         .order('created_at', { ascending: false });
       setPhotos(data || []);
@@ -79,14 +78,19 @@ export default function ParentPhotosScreen() {
         </View>
       ) : (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.enfantSelector}>
+          {/* Sélecteur enfant */}
+          <ScrollView
+            horizontal showsHorizontalScrollIndicator={false}
+            style={s.enfantSelector}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+          >
             {enfants.map(enfant => (
               <TouchableOpacity
                 key={enfant.id}
                 style={[s.enfantChip, selectedEnfant?.id === enfant.id && s.enfantChipActive]}
                 onPress={() => setSelectedEnfant(enfant)}
               >
-                <Avatar enfant={enfant} size={44} />
+                <Avatar enfant={enfant} size={40} />
                 <Text style={[s.enfantChipText, selectedEnfant?.id === enfant.id && s.enfantChipTextActive]}>
                   {enfant.prenom}
                 </Text>
@@ -96,6 +100,7 @@ export default function ParentPhotosScreen() {
 
           <ScrollView
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+            showsVerticalScrollIndicator={false}
           >
             {photos.length === 0 ? (
               <View style={s.empty}>
@@ -114,6 +119,7 @@ export default function ParentPhotosScreen() {
                 ))}
               </View>
             )}
+            <View style={{ height: 30 }} />
           </ScrollView>
         </>
       )}
@@ -125,18 +131,21 @@ const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
-  header: { padding: 20, paddingTop: 60 },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.text },
-  enfantSelector: { paddingHorizontal: 16, marginBottom: 16, maxHeight: 80 },
-  enfantChip: { alignItems: 'center', marginRight: 16, opacity: 0.5 },
+  header: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text },
+
+  enfantSelector: { marginBottom: 16, maxHeight: 80 },
+  enfantChip: { alignItems: 'center', opacity: 0.5 },
   enfantChipActive: { opacity: 1 },
-  enfantChipText: { color: theme.textSecondary, fontSize: 12, marginTop: 4 },
-  enfantChipTextActive: { color: theme.primary, fontWeight: '600' },
+  enfantChipText: { color: theme.textSecondary, fontSize: 11, marginTop: 4 },
+  enfantChipTextActive: { color: theme.primary, fontWeight: '700' },
+
   empty: { alignItems: 'center', marginTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15 },
-  photosGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8, gap: 8 },
-  photoContainer: { width: '47%', marginBottom: 8 },
+
+  photosGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 8 },
+  photoContainer: { width: '47%' },
   photo: { width: '100%', height: 160, borderRadius: 12 },
   photoDate: { color: theme.textSecondary, fontSize: 11, marginTop: 4, textAlign: 'center' },
 });

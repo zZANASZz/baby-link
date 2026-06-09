@@ -11,10 +11,15 @@ import ParentSettingsScreen from './ParentSettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
-function TabIcon({ emoji, focused }) {
+function TabIcon({ emoji, focused, theme }) {
   return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
+    <View style={{
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: focused ? theme.primary : 'transparent',
+      borderRadius: 20, paddingHorizontal: focused ? 12 : 0,
+      paddingVertical: 4,
+    }}>
+      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>
     </View>
   );
 }
@@ -32,11 +37,11 @@ export default function ParentTabs() {
           borderTopWidth: 1,
           paddingBottom: 8,
           paddingTop: 8,
-          height: 60,
+          height: 62,
         },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
-        tabBarLabelStyle: { fontSize: 11, marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
       }}
     >
       <Tab.Screen
@@ -44,7 +49,7 @@ export default function ParentTabs() {
         component={ParentDashboardScreen}
         options={{
           tabBarLabel: t('home'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} theme={theme} />,
         }}
       />
       <Tab.Screen
@@ -52,7 +57,7 @@ export default function ParentTabs() {
         component={MyChildrenScreen}
         options={{
           tabBarLabel: t('myChildren'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👶" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="👶" focused={focused} theme={theme} />,
         }}
       />
       <Tab.Screen
@@ -60,7 +65,7 @@ export default function ParentTabs() {
         component={ParentPhotosScreen}
         options={{
           tabBarLabel: t('photos'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📸" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📸" focused={focused} theme={theme} />,
         }}
       />
       <Tab.Screen
@@ -68,7 +73,7 @@ export default function ParentTabs() {
         component={ParentMessagesScreen}
         options={{
           tabBarLabel: t('messages'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} theme={theme} />,
         }}
       />
       <Tab.Screen
@@ -76,7 +81,7 @@ export default function ParentTabs() {
         component={ParentSettingsScreen}
         options={{
           tabBarLabel: t('settings'),
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} theme={theme} />,
         }}
       />
     </Tab.Navigator>

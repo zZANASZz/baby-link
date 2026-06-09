@@ -7,7 +7,7 @@ import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 
 export default function ParentSettingsScreen() {
-  const { theme, isDark, toggleTheme, language, setLanguage, t } = useTheme();
+  const { theme, language, setLanguage, t } = useTheme();
   const [profile, setProfile] = useState(null);
   const [creche, setCreche] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,7 @@ export default function ParentSettingsScreen() {
   async function supprimerCompte() {
     Alert.alert(
       '⚠️ ' + t('deleteAccount'),
-      'Attention, vous vous apprêtez à supprimer votre compte et quitter la crèche définitivement.\n\nSi vous souhaitez simplement vous déconnecter, utilisez le bouton Déconnexion en bas.',
+      'Attention, vous vous apprêtez à supprimer votre compte.\n\nSi vous souhaitez simplement vous déconnecter, utilisez le bouton Déconnexion en bas.',
       [
         { text: t('cancel'), style: 'cancel' },
         {
@@ -65,30 +65,28 @@ export default function ParentSettingsScreen() {
   const s = styles(theme);
 
   if (loading) return (
-    <View style={s.center}>
-      <Text style={s.loadingText}>{t('loading')}</Text>
-    </View>
+    <View style={s.center}><Text style={s.loadingText}>{t('loading')}</Text></View>
   );
 
   return (
-    <ScrollView style={s.container}>
+    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       <View style={s.header}>
         <Text style={s.title}>{t('settingsTitle')}</Text>
       </View>
 
-      {/* Infos profil */}
+      {/* Profil */}
       <View style={s.card}>
         <Text style={s.cardLabel}>Mon profil</Text>
         <Text style={s.profileName}>{profile?.prenom} {profile?.nom}</Text>
+        <Text style={s.roleTag}>{t('parent')}</Text>
       </View>
 
-      {/* Infos crèche */}
+      {/* Crèche */}
       {creche && (
         <View style={s.card}>
           <Text style={s.cardLabel}>Ma crèche</Text>
           <Text style={s.crecheName}>{creche.nom}</Text>
-          {creche.adresse && <Text style={s.checheAddress}>{creche.adresse}</Text>}
-          <Text style={s.roleText}>{t('parent')}</Text>
+          {creche.adresse && <Text style={s.crecheAddress}>{creche.adresse}</Text>}
         </View>
       )}
 
@@ -111,12 +109,6 @@ export default function ParentSettingsScreen() {
         </View>
       </View>
 
-      {/* Theme */}
-      <TouchableOpacity style={s.menuItem} onPress={toggleTheme}>
-        <Text style={s.menuItemText}>{isDark ? t('lightMode') : t('darkMode')}</Text>
-        <Text style={s.menuItemArrow}>→</Text>
-      </TouchableOpacity>
-
       {/* Supprimer compte */}
       <TouchableOpacity style={s.dangerBtn} onPress={supprimerCompte}>
         <Text style={s.dangerBtnText}>{t('deleteAccount')}</Text>
@@ -136,50 +128,44 @@ const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
-  header: { padding: 20, paddingTop: 60 },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.text },
+  header: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text },
+
   card: {
-    marginHorizontal: 16, marginBottom: 16,
+    marginHorizontal: 16, marginBottom: 14,
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: theme.border
+    borderWidth: 1, borderColor: theme.border,
   },
-  cardLabel: { fontSize: 12, color: theme.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
-  profileName: { fontSize: 17, fontWeight: 'bold', color: theme.text },
-  crecheName: { fontSize: 17, fontWeight: 'bold', color: theme.text, marginBottom: 4 },
-  checheAddress: { fontSize: 14, color: theme.textSecondary, marginBottom: 4 },
-  roleText: { fontSize: 13, color: theme.primary, fontWeight: '600' },
+  cardLabel: { fontSize: 11, color: theme.textSecondary, marginBottom: 6, fontWeight: '600', letterSpacing: 0.5 },
+  profileName: { fontSize: 17, fontWeight: '700', color: theme.text, marginBottom: 4 },
+  roleTag: { fontSize: 12, color: theme.primary, fontWeight: '700' },
+  crecheName: { fontSize: 16, fontWeight: '700', color: theme.text, marginBottom: 4 },
+  crecheAddress: { fontSize: 13, color: theme.textSecondary },
+
   section: {
-    marginHorizontal: 16, marginBottom: 16,
+    marginHorizontal: 16, marginBottom: 14,
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: theme.border
+    borderWidth: 1, borderColor: theme.border,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '600', color: theme.text, marginBottom: 12 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 12 },
+
   langRow: { flexDirection: 'row', gap: 10 },
   langBtn: {
     flex: 1, alignItems: 'center', padding: 12,
     borderRadius: 12, borderWidth: 2, borderColor: theme.border,
-    backgroundColor: theme.background
+    backgroundColor: theme.background,
   },
   langBtnActive: { borderColor: theme.primary, backgroundColor: theme.primaryLight },
   langFlag: { fontSize: 24, marginBottom: 4 },
   langName: { fontSize: 11, color: theme.textSecondary },
-  langNameActive: { color: theme.primary, fontWeight: '600' },
-  menuItem: {
-    marginHorizontal: 16, marginBottom: 10,
-    backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 1, borderColor: theme.border
-  },
-  menuItemText: { color: theme.text, fontSize: 15 },
-  menuItemArrow: { color: theme.textSecondary, fontSize: 18 },
+  langNameActive: { color: theme.primary, fontWeight: '700' },
+
   dangerBtn: {
     marginHorizontal: 16, marginBottom: 10, borderRadius: 16,
-    padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.danger
+    padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.danger,
   },
   dangerBtnText: { color: theme.danger, fontSize: 15, fontWeight: '600' },
-  logoutBtn: {
-    marginHorizontal: 16, marginBottom: 10,
-    padding: 16, alignItems: 'center'
-  },
+
+  logoutBtn: { marginHorizontal: 16, marginBottom: 10, padding: 16, alignItems: 'center' },
   logoutBtnText: { color: theme.textSecondary, fontSize: 15 },
 });
