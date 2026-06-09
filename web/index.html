@@ -2,6 +2,7 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#5b8fcf" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -12,22 +13,9 @@
     <link rel="manifest" href="/manifest.json" />
     <title>Baby-link</title>
     <style>
-      * {
-        -webkit-overflow-scrolling: touch;
-        box-sizing: border-box;
-      }
-      html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overscroll-behavior: none;
-        overflow: hidden;
-      }
-      #root {
-        width: 100%;
-        height: 100%;
-      }
+      html, body { height: 100%; margin: 0; padding: 0; }
+      body { overflow-x: hidden; overflow-y: auto; }
+      #root { display: flex; height: 100%; flex: 1; }
     </style>
   </head>
   <body>
