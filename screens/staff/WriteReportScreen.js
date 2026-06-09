@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput, Alert, ActivityIndicator
+  TouchableOpacity, TextInput, Alert, ActivityIndicator, Platform
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 
-// Sélecteur d'humeur
 function HumeurSelector({ value, onChange, theme }) {
   const options = [
     { key: 'super', emoji: '😄', label: 'Super' },
@@ -38,16 +37,12 @@ const humeurStyles = (theme) => StyleSheet.create({
     borderRadius: 12, borderWidth: 1, borderColor: theme.border,
     backgroundColor: theme.background,
   },
-  optionSelected: {
-    backgroundColor: theme.primarySoft,
-    borderColor: theme.primary,
-  },
+  optionSelected: { backgroundColor: theme.primarySoft, borderColor: theme.primary },
   emoji: { fontSize: 22 },
   label: { fontSize: 10, color: theme.textSecondary, marginTop: 3, fontWeight: '600' },
   labelSelected: { color: theme.primary },
 });
 
-// Sélecteur quantité repas
 function QuantiteSelector({ value, onChange, theme }) {
   const options = [
     { key: 'rien', label: 'Rien', color: theme.danger },
@@ -78,19 +73,15 @@ function QuantiteSelector({ value, onChange, theme }) {
   );
 }
 
-// Champ texte réutilisable
 function ChampTexte({ placeholder, value, onChange, theme }) {
-  const s = StyleSheet.create({
-    input: {
-      backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
-      borderColor: theme.inputBorder, color: theme.text, fontSize: 14,
-      paddingHorizontal: 12, paddingVertical: 10,
-      minHeight: 44, textAlignVertical: 'top',
-    }
-  });
   return (
     <TextInput
-      style={s.input}
+      style={{
+        backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
+        borderColor: theme.inputBorder, color: theme.text, fontSize: 14,
+        paddingHorizontal: 12, paddingVertical: 10,
+        minHeight: 44, textAlignVertical: 'top',
+      }}
       placeholder={placeholder}
       placeholderTextColor={theme.placeholder}
       value={value}
@@ -100,18 +91,13 @@ function ChampTexte({ placeholder, value, onChange, theme }) {
   );
 }
 
-// Bloc section du rapport
 function SectionRapport({ titre, children, theme }) {
-  const s = StyleSheet.create({
-    block: {
+  return (
+    <View style={{
       backgroundColor: theme.card, borderRadius: 16, padding: 16,
       marginBottom: 12, borderWidth: 1, borderColor: theme.border,
-    },
-    titre: { fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 12 },
-  });
-  return (
-    <View style={s.block}>
-      <Text style={s.titre}>{titre}</Text>
+    }}>
+      <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text, marginBottom: 12 }}>{titre}</Text>
       {children}
     </View>
   );
@@ -122,7 +108,6 @@ export default function WriteReportScreen({ route, navigation }) {
   const { enfant } = route.params;
   const isBebe = enfant.section === 'petite' || !enfant.section;
 
-  // États communs
   const [humeur, setHumeur] = useState(null);
   const [humeurNote, setHumeurNote] = useState('');
   const [sante, setSante] = useState('');
@@ -132,14 +117,10 @@ export default function WriteReportScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [loadingBrouillon, setLoadingBrouillon] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-
-  // Stock mensuel
   const [stockId, setStockId] = useState(null);
   const [langes, setLanges] = useState('');
   const [lingettes, setLingettes] = useState('');
   const [mouchoirs, setMouchoirs] = useState('');
-
-  // --- GRANDS (18-36 mois) ---
   const [repasMidiQuantite, setRepasMidiQuantite] = useState(null);
   const [repasMidiNote, setRepasMidiNote] = useState('');
   const [repasGoûterQuantite, setRepasGoûterQuantite] = useState(null);
@@ -147,8 +128,6 @@ export default function WriteReportScreen({ route, navigation }) {
   const [siesteDebut, setSiesteDebut] = useState('');
   const [siesteFin, setSiesteFin] = useState('');
   const [siesteNote, setSiesteNote] = useState('');
-
-  // --- BÉBÉS (0-18 mois) : listes dynamiques ---
   const [repas, setRepas] = useState([{ id: 1, heure: '', type: 'biberon', quantite: '', note: '' }]);
   const [siestes, setSiestes] = useState([{ id: 1, debut: '', fin: '', note: '' }]);
 
@@ -162,8 +141,7 @@ export default function WriteReportScreen({ route, navigation }) {
   async function loadStock() {
     try {
       const mois = getMoisActuel();
-      const { data } = await supabase
-        .from('stock_mensuel').select('*')
+      const { data } = await supabase.from('stock_mensuel').select('*')
         .eq('enfant_id', enfant.id).eq('mois', mois).maybeSingle();
       if (data) {
         setStockId(data.id);
@@ -177,10 +155,8 @@ export default function WriteReportScreen({ route, navigation }) {
   async function loadBrouillon() {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase
-        .from('rapports').select('*')
+      const { data } = await supabase.from('rapports').select('*')
         .eq('enfant_id', enfant.id).eq('date', today).maybeSingle();
-
       if (data) {
         setBrouillonId(data.id);
         setHumeur(data.humeur || null);
@@ -188,7 +164,6 @@ export default function WriteReportScreen({ route, navigation }) {
         setSante(data.sante || '');
         setNotesGenerales(data.commentaire || '');
         setJournalPrive(data.journal_prive || '');
-
         if (isBebe) {
           if (data.repas_bebe) setRepas(JSON.parse(data.repas_bebe));
           if (data.siestes_bebe) setSiestes(JSON.parse(data.siestes_bebe));
@@ -228,33 +203,21 @@ export default function WriteReportScreen({ route, navigation }) {
   async function handleSave(publier) {
     if (publier) setLoading(true);
     else setLoadingBrouillon(true);
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const today = new Date().toISOString().split('T')[0];
-
       const data = {
-        enfant_id: enfant.id,
-        auteur_id: user.id,
-        date: today,
-        humeur: humeur || null,
-        humeur_note: humeurNote || null,
-        sante: sante || null,
-        commentaire: notesGenerales || null,
-        journal_prive: journalPrive || null,
-        brouillon: !publier,
+        enfant_id: enfant.id, auteur_id: user.id, date: today,
+        humeur: humeur || null, humeur_note: humeurNote || null,
+        sante: sante || null, commentaire: notesGenerales || null,
+        journal_prive: journalPrive || null, brouillon: !publier,
       };
-
       if (isBebe) {
         data.repas_bebe = JSON.stringify(repas);
         data.siestes_bebe = JSON.stringify(siestes);
-        data.repas_midi_stars = null;
-        data.repas_midi_note = null;
-        data.repas_aprem_stars = null;
-        data.repas_aprem_note = null;
-        data.sieste_debut = null;
-        data.sieste_fin = null;
-        data.sommeil = null;
+        data.repas_midi_stars = null; data.repas_midi_note = null;
+        data.repas_aprem_stars = null; data.repas_aprem_note = null;
+        data.sieste_debut = null; data.sieste_fin = null; data.sommeil = null;
       } else {
         data.repas_midi_stars = repasMidiQuantite || null;
         data.repas_midi_note = repasMidiNote || null;
@@ -263,10 +226,8 @@ export default function WriteReportScreen({ route, navigation }) {
         data.sieste_debut = siesteDebut || null;
         data.sieste_fin = siesteFin || null;
         data.sommeil = siesteNote || null;
-        data.repas_bebe = null;
-        data.siestes_bebe = null;
+        data.repas_bebe = null; data.siestes_bebe = null;
       }
-
       let error;
       if (brouillonId) {
         const { error: e } = await supabase.from('rapports').update(data).eq('id', brouillonId);
@@ -276,11 +237,8 @@ export default function WriteReportScreen({ route, navigation }) {
         error = e;
         if (nr) setBrouillonId(nr.id);
       }
-
       if (error) { Alert.alert(t('error'), error.message); return; }
-
       await saveStock();
-
       if (publier) {
         Alert.alert('✅ ' + t('reportPublished'), t('parentsCanSee'));
         navigation.goBack();
@@ -288,46 +246,25 @@ export default function WriteReportScreen({ route, navigation }) {
         Alert.alert('💾 ' + t('draftSaved'), t('draftNotVisible'));
       }
     } catch (e) { Alert.alert(t('error'), e.message); }
-
     setLoading(false);
     setLoadingBrouillon(false);
   }
 
-  // Gestion repas bébé
-  function addRepas() {
-    setRepas(prev => [...prev, { id: Date.now(), heure: '', type: 'biberon', quantite: '', note: '' }]);
-  }
-  function updateRepas(id, field, value) {
-    setRepas(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  }
-  function removeRepas(id) {
-    if (repas.length <= 1) return;
-    setRepas(prev => prev.filter(r => r.id !== id));
-  }
-
-  // Gestion siestes bébé
-  function addSieste() {
-    setSiestes(prev => [...prev, { id: Date.now(), debut: '', fin: '', note: '' }]);
-  }
-  function updateSieste(id, field, value) {
-    setSiestes(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
-  }
-  function removeSieste(id) {
-    if (siestes.length <= 1) return;
-    setSiestes(prev => prev.filter(s => s.id !== id));
-  }
+  function addRepas() { setRepas(prev => [...prev, { id: Date.now(), heure: '', type: 'biberon', quantite: '', note: '' }]); }
+  function updateRepas(id, field, value) { setRepas(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r)); }
+  function removeRepas(id) { if (repas.length <= 1) return; setRepas(prev => prev.filter(r => r.id !== id)); }
+  function addSieste() { setSiestes(prev => [...prev, { id: Date.now(), debut: '', fin: '', note: '' }]); }
+  function updateSieste(id, field, value) { setSiestes(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s)); }
+  function removeSieste(id) { if (siestes.length <= 1) return; setSiestes(prev => prev.filter(s => s.id !== id)); }
 
   const s = styles(theme);
 
   if (loadingData) return (
-    <View style={s.center}>
-      <ActivityIndicator color={theme.primary} size="large" />
-    </View>
+    <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>
   );
 
   return (
     <View style={s.container}>
-      {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backText}>← Retour</Text>
@@ -346,7 +283,13 @@ export default function WriteReportScreen({ route, navigation }) {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.inner} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.inner}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+      >
         <Text style={s.titre}>{t('dailyReport')}</Text>
 
         {brouillonId && (
@@ -355,139 +298,74 @@ export default function WriteReportScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* ---- GRANDS (18-36 mois) ---- */}
         {!isBebe && (
           <>
             <SectionRapport titre="🍽️ Repas midi" theme={theme}>
               <QuantiteSelector value={repasMidiQuantite} onChange={setRepasMidiQuantite} theme={theme} />
-              <ChampTexte
-                placeholder="Ex: A bien mangé les légumes, refusé le dessert..."
-                value={repasMidiNote}
-                onChange={setRepasMidiNote}
-                theme={theme}
-              />
+              <ChampTexte placeholder="Ex: A bien mangé les légumes..." value={repasMidiNote} onChange={setRepasMidiNote} theme={theme} />
             </SectionRapport>
 
             <SectionRapport titre="🍎 Repas goûter" theme={theme}>
               <QuantiteSelector value={repasGoûterQuantite} onChange={setRepasGoûterQuantite} theme={theme} />
-              <ChampTexte
-                placeholder="Ex: A mangé le fruit, bu le jus..."
-                value={repasGoûterNote}
-                onChange={setRepasGoûterNote}
-                theme={theme}
-              />
+              <ChampTexte placeholder="Ex: A mangé le fruit, bu le jus..." value={repasGoûterNote} onChange={setRepasGoûterNote} theme={theme} />
             </SectionRapport>
 
             <SectionRapport titre="😴 Sieste" theme={theme}>
               <View style={s.siesteRow}>
                 <View style={s.siesteField}>
                   <Text style={s.siesteLabel}>Début</Text>
-                  <TextInput
-                    style={s.siesteInput}
-                    placeholder="13:00"
-                    placeholderTextColor={theme.placeholder}
-                    value={siesteDebut}
-                    onChangeText={setSiesteDebut}
-                  />
+                  <TextInput style={s.siesteInput} placeholder="13:00" placeholderTextColor={theme.placeholder} value={siesteDebut} onChangeText={setSiesteDebut} />
                 </View>
                 <Text style={s.siesteArrow}>→</Text>
                 <View style={s.siesteField}>
                   <Text style={s.siesteLabel}>Fin</Text>
-                  <TextInput
-                    style={s.siesteInput}
-                    placeholder="14:30"
-                    placeholderTextColor={theme.placeholder}
-                    value={siesteFin}
-                    onChangeText={setSiesteFin}
-                  />
+                  <TextInput style={s.siesteInput} placeholder="14:30" placeholderTextColor={theme.placeholder} value={siesteFin} onChangeText={setSiesteFin} />
                 </View>
               </View>
               <View style={{ marginTop: 10 }}>
-                <ChampTexte
-                  placeholder="Ex: A eu du mal à s'endormir, s'est réveillé une fois..."
-                  value={siesteNote}
-                  onChange={setSiesteNote}
-                  theme={theme}
-                />
+                <ChampTexte placeholder="Ex: A eu du mal à s'endormir..." value={siesteNote} onChange={setSiesteNote} theme={theme} />
               </View>
             </SectionRapport>
           </>
         )}
 
-        {/* ---- BÉBÉS (0-18 mois) ---- */}
         {isBebe && (
           <>
-            {/* Repas multiples */}
-            <View style={[s.blockCard]}>
+            <View style={s.blockCard}>
               <View style={s.blockHeader}>
                 <Text style={s.blockTitre}>🍼 Repas</Text>
                 <TouchableOpacity style={s.addItemBtn} onPress={addRepas}>
                   <Text style={s.addItemBtnText}>+ Ajouter</Text>
                 </TouchableOpacity>
               </View>
-
               {repas.map((r, index) => (
                 <View key={r.id} style={[s.itemCard, index > 0 && { marginTop: 10 }]}>
                   <View style={s.itemCardHeader}>
                     <Text style={s.itemCardNum}>Repas {index + 1}</Text>
-                    {repas.length > 1 && (
-                      <TouchableOpacity onPress={() => removeRepas(r.id)}>
-                        <Text style={s.removeBtn}>✕</Text>
-                      </TouchableOpacity>
-                    )}
+                    {repas.length > 1 && <TouchableOpacity onPress={() => removeRepas(r.id)}><Text style={s.removeBtn}>✕</Text></TouchableOpacity>}
                   </View>
-
-                  {/* Heure + type */}
                   <View style={s.rowFields}>
                     <View style={s.fieldHalf}>
                       <Text style={s.fieldLabel}>Heure</Text>
-                      <TextInput
-                        style={s.fieldInput}
-                        placeholder="08:30"
-                        placeholderTextColor={theme.placeholder}
-                        value={r.heure}
-                        onChangeText={v => updateRepas(r.id, 'heure', v)}
-                      />
+                      <TextInput style={s.fieldInput} placeholder="08:30" placeholderTextColor={theme.placeholder} value={r.heure} onChangeText={v => updateRepas(r.id, 'heure', v)} />
                     </View>
                     <View style={s.fieldHalf}>
                       <Text style={s.fieldLabel}>Quantité (ml)</Text>
-                      <TextInput
-                        style={s.fieldInput}
-                        placeholder="150"
-                        placeholderTextColor={theme.placeholder}
-                        value={r.quantite}
-                        onChangeText={v => updateRepas(r.id, 'quantite', v)}
-                        keyboardType="numeric"
-                      />
+                      <TextInput style={s.fieldInput} placeholder="150" placeholderTextColor={theme.placeholder} value={r.quantite} onChangeText={v => updateRepas(r.id, 'quantite', v)} keyboardType="numeric" />
                     </View>
                   </View>
-
-                  {/* Type de repas */}
                   <View style={s.typeRow}>
                     {['biberon', 'purée', 'compote', 'goûter', 'autre'].map(type => (
-                      <TouchableOpacity
-                        key={type}
-                        style={[s.typeBtn, r.type === type && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}
-                        onPress={() => updateRepas(r.id, 'type', type)}
-                      >
-                        <Text style={[s.typeBtnText, r.type === type && { color: theme.primary, fontWeight: '700' }]}>
-                          {type}
-                        </Text>
+                      <TouchableOpacity key={type} style={[s.typeBtn, r.type === type && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]} onPress={() => updateRepas(r.id, 'type', type)}>
+                        <Text style={[s.typeBtnText, r.type === type && { color: theme.primary, fontWeight: '700' }]}>{type}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
-
-                  <ChampTexte
-                    placeholder="Ex: A bien bu, a craché un peu..."
-                    value={r.note}
-                    onChange={v => updateRepas(r.id, 'note', v)}
-                    theme={theme}
-                  />
+                  <ChampTexte placeholder="Ex: A bien bu..." value={r.note} onChange={v => updateRepas(r.id, 'note', v)} theme={theme} />
                 </View>
               ))}
             </View>
 
-            {/* Siestes multiples */}
             <View style={s.blockCard}>
               <View style={s.blockHeader}>
                 <Text style={s.blockTitre}>😴 Siestes</Text>
@@ -495,49 +373,25 @@ export default function WriteReportScreen({ route, navigation }) {
                   <Text style={s.addItemBtnText}>+ Ajouter</Text>
                 </TouchableOpacity>
               </View>
-
               {siestes.map((si, index) => (
                 <View key={si.id} style={[s.itemCard, index > 0 && { marginTop: 10 }]}>
                   <View style={s.itemCardHeader}>
                     <Text style={s.itemCardNum}>Sieste {index + 1}</Text>
-                    {siestes.length > 1 && (
-                      <TouchableOpacity onPress={() => removeSieste(si.id)}>
-                        <Text style={s.removeBtn}>✕</Text>
-                      </TouchableOpacity>
-                    )}
+                    {siestes.length > 1 && <TouchableOpacity onPress={() => removeSieste(si.id)}><Text style={s.removeBtn}>✕</Text></TouchableOpacity>}
                   </View>
-
                   <View style={s.siesteRow}>
                     <View style={s.siesteField}>
                       <Text style={s.siesteLabel}>Début</Text>
-                      <TextInput
-                        style={s.siesteInput}
-                        placeholder="09:00"
-                        placeholderTextColor={theme.placeholder}
-                        value={si.debut}
-                        onChangeText={v => updateSieste(si.id, 'debut', v)}
-                      />
+                      <TextInput style={s.siesteInput} placeholder="09:00" placeholderTextColor={theme.placeholder} value={si.debut} onChangeText={v => updateSieste(si.id, 'debut', v)} />
                     </View>
                     <Text style={s.siesteArrow}>→</Text>
                     <View style={s.siesteField}>
                       <Text style={s.siesteLabel}>Fin</Text>
-                      <TextInput
-                        style={s.siesteInput}
-                        placeholder="10:30"
-                        placeholderTextColor={theme.placeholder}
-                        value={si.fin}
-                        onChangeText={v => updateSieste(si.id, 'fin', v)}
-                      />
+                      <TextInput style={s.siesteInput} placeholder="10:30" placeholderTextColor={theme.placeholder} value={si.fin} onChangeText={v => updateSieste(si.id, 'fin', v)} />
                     </View>
                   </View>
-
                   <View style={{ marginTop: 10 }}>
-                    <ChampTexte
-                      placeholder="Ex: A dormi d'un trait, s'est réveillé en pleurant..."
-                      value={si.note}
-                      onChange={v => updateSieste(si.id, 'note', v)}
-                      theme={theme}
-                    />
+                    <ChampTexte placeholder="Ex: A dormi d'un trait..." value={si.note} onChange={v => updateSieste(si.id, 'note', v)} theme={theme} />
                   </View>
                 </View>
               ))}
@@ -545,40 +399,21 @@ export default function WriteReportScreen({ route, navigation }) {
           </>
         )}
 
-        {/* Humeur — commun */}
         <SectionRapport titre="😊 Humeur" theme={theme}>
           <HumeurSelector value={humeur} onChange={setHumeur} theme={theme} />
           <View style={{ marginTop: 10 }}>
-            <ChampTexte
-              placeholder="Ex: Très souriant ce matin, fatigué l'après-midi..."
-              value={humeurNote}
-              onChange={setHumeurNote}
-              theme={theme}
-            />
+            <ChampTexte placeholder="Ex: Très souriant ce matin..." value={humeurNote} onChange={setHumeurNote} theme={theme} />
           </View>
         </SectionRapport>
 
-        {/* Santé — commun */}
         <SectionRapport titre="🏥 Notes santé" theme={theme}>
-          <ChampTexte
-            placeholder="Ex: Légère fièvre à 37.8°, petite rougeur sur la joue..."
-            value={sante}
-            onChange={setSante}
-            theme={theme}
-          />
+          <ChampTexte placeholder="Ex: Légère fièvre à 37.8°..." value={sante} onChange={setSante} theme={theme} />
         </SectionRapport>
 
-        {/* Notes générales — commun */}
         <SectionRapport titre="📝 Notes générales" theme={theme}>
-          <ChampTexte
-            placeholder="Ex: A adoré l'activité peinture, a fait ses premiers pas..."
-            value={notesGenerales}
-            onChange={setNotesGenerales}
-            theme={theme}
-          />
+          <ChampTexte placeholder="Ex: A adoré l'activité peinture..." value={notesGenerales} onChange={setNotesGenerales} theme={theme} />
         </SectionRapport>
 
-        {/* Journal privé — commun, visible uniquement staff */}
         <View style={s.journalBlock}>
           <View style={s.journalHeader}>
             <Text style={s.journalTitre}>📓 Journal privé</Text>
@@ -587,89 +422,51 @@ export default function WriteReportScreen({ route, navigation }) {
             </View>
           </View>
           <Text style={s.journalSub}>Non visible par les parents</Text>
-          <ChampTexte
-            placeholder="Ex: Lucas a mordu un camarade, à surveiller. Maman semblait stressée ce matin..."
-            value={journalPrive}
-            onChange={setJournalPrive}
-            theme={theme}
-          />
+          <ChampTexte placeholder="Ex: Lucas a mordu un camarade..." value={journalPrive} onChange={setJournalPrive} theme={theme} />
         </View>
 
-        {/* Stock mensuel */}
         <SectionRapport titre="📦 Stock mensuel" theme={theme}>
           <Text style={s.stockMois}>
             {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
           </Text>
-          <View style={s.stockRow}>
-            <Text style={s.stockLabel}>🩲 Langes</Text>
-            <TextInput
-              style={s.stockInput}
-              placeholder="0"
-              placeholderTextColor={theme.placeholder}
-              value={langes}
-              onChangeText={setLanges}
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={s.stockRow}>
-            <Text style={s.stockLabel}>🧻 Lingettes</Text>
-            <TextInput
-              style={s.stockInput}
-              placeholder="0"
-              placeholderTextColor={theme.placeholder}
-              value={lingettes}
-              onChangeText={setLingettes}
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={s.stockRow}>
-            <Text style={s.stockLabel}>🤧 Mouchoirs</Text>
-            <TextInput
-              style={s.stockInput}
-              placeholder="0"
-              placeholderTextColor={theme.placeholder}
-              value={mouchoirs}
-              onChangeText={setMouchoirs}
-              keyboardType="numeric"
-            />
-          </View>
+          {[
+            { label: '🩲 Langes', value: langes, onChange: setLanges },
+            { label: '🧻 Lingettes', value: lingettes, onChange: setLingettes },
+            { label: '🤧 Mouchoirs', value: mouchoirs, onChange: setMouchoirs },
+          ].map((item, i) => (
+            <View key={i} style={s.stockRow}>
+              <Text style={s.stockLabel}>{item.label}</Text>
+              <TextInput style={s.stockInput} placeholder="0" placeholderTextColor={theme.placeholder} value={item.value} onChangeText={item.onChange} keyboardType="numeric" />
+            </View>
+          ))}
         </SectionRapport>
 
-        {/* Boutons */}
         <View style={s.buttonsRow}>
-          <TouchableOpacity
-            style={s.brouillonBtn}
-            onPress={() => handleSave(false)}
-            disabled={loadingBrouillon}
-          >
-            {loadingBrouillon
-              ? <ActivityIndicator color={theme.primary} />
-              : <Text style={s.brouillonBtnText}>💾 Brouillon</Text>
-            }
+          <TouchableOpacity style={s.brouillonBtn} onPress={() => handleSave(false)} disabled={loadingBrouillon}>
+            {loadingBrouillon ? <ActivityIndicator color={theme.primary} /> : <Text style={s.brouillonBtnText}>💾 Brouillon</Text>}
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={s.publierBtn}
-            onPress={() => handleSave(true)}
-            disabled={loading}
-          >
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={s.publierBtnText}>✓ Publier</Text>
-            }
+          <TouchableOpacity style={s.publierBtn} onPress={() => handleSave(true)} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.publierBtnText}>✓ Publier</Text>}
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = (theme) => StyleSheet.create({
- container: { flex: 1, backgroundColor: theme.background },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+    ...(Platform.OS === 'web' ? { height: '100vh', overflow: 'hidden' } : {}),
+  },
+  scroll: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { overflowY: 'scroll', WebkitOverflowScrolling: 'touch' } : {}),
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
-
   header: {
     backgroundColor: theme.card, borderBottomWidth: 1, borderBottomColor: theme.border,
     paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12,
@@ -680,17 +477,13 @@ const styles = (theme) => StyleSheet.create({
   headerNom: { fontSize: 18, fontWeight: '700', color: theme.text },
   sectionTag: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
   sectionTagText: { fontSize: 11, fontWeight: '700' },
-
-  inner: { padding: 16 },
+  inner: { padding: 16, paddingBottom: 40 },
   titre: { fontSize: 20, fontWeight: '700', color: theme.text, marginBottom: 14 },
-
   brouillonBanner: {
     backgroundColor: theme.primarySoft, borderRadius: 10,
     padding: 10, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: theme.primary,
   },
   brouillonBannerText: { color: theme.primary, fontSize: 13, fontWeight: '600' },
-
-  // Sieste
   siesteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   siesteField: { flex: 1 },
   siesteLabel: { fontSize: 12, color: theme.textSecondary, fontWeight: '600', marginBottom: 6 },
@@ -700,8 +493,6 @@ const styles = (theme) => StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10, textAlign: 'center',
   },
   siesteArrow: { color: theme.textSecondary, fontSize: 16, marginTop: 16 },
-
-  // Blocs bébé
   blockCard: {
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
     marginBottom: 12, borderWidth: 1, borderColor: theme.border,
@@ -713,7 +504,6 @@ const styles = (theme) => StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: theme.primaryLight,
   },
   addItemBtnText: { color: theme.primary, fontSize: 12, fontWeight: '700' },
-
   itemCard: {
     backgroundColor: theme.background, borderRadius: 12,
     borderWidth: 1, borderColor: theme.border, padding: 12,
@@ -721,7 +511,6 @@ const styles = (theme) => StyleSheet.create({
   itemCardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   itemCardNum: { fontSize: 13, fontWeight: '700', color: theme.text },
   removeBtn: { color: theme.danger, fontSize: 14, fontWeight: '700' },
-
   rowFields: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   fieldHalf: { flex: 1 },
   fieldLabel: { fontSize: 11, color: theme.textSecondary, fontWeight: '600', marginBottom: 5 },
@@ -730,15 +519,12 @@ const styles = (theme) => StyleSheet.create({
     borderColor: theme.inputBorder, color: theme.text, fontSize: 14,
     paddingHorizontal: 10, paddingVertical: 9, textAlign: 'center',
   },
-
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   typeBtn: {
     borderRadius: 20, borderWidth: 1, borderColor: theme.border,
     paddingHorizontal: 10, paddingVertical: 5, backgroundColor: theme.background,
   },
   typeBtnText: { fontSize: 11, color: theme.textSecondary },
-
-  // Journal privé
   journalBlock: {
     backgroundColor: theme.warningLight, borderRadius: 16, padding: 16,
     marginBottom: 12, borderWidth: 1, borderColor: '#f0c08a',
@@ -751,30 +537,20 @@ const styles = (theme) => StyleSheet.create({
   },
   journalBadgeText: { fontSize: 10, fontWeight: '700', color: theme.warning },
   journalSub: { fontSize: 12, color: '#b3661f', marginBottom: 12 },
-
-  // Stock
   stockMois: { fontSize: 12, color: theme.textSecondary, marginBottom: 12, marginTop: -4 },
-  stockRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 12,
-  },
+  stockRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   stockLabel: { color: theme.text, fontSize: 14, fontWeight: '600' },
   stockInput: {
     backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
     borderColor: theme.inputBorder, color: theme.text, fontSize: 14,
     paddingHorizontal: 12, paddingVertical: 9, width: 90, textAlign: 'center',
   },
-
-  // Boutons
   buttonsRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
   brouillonBtn: {
     flex: 1, borderRadius: 12, padding: 15, alignItems: 'center',
     borderWidth: 2, borderColor: theme.primary, backgroundColor: 'transparent',
   },
   brouillonBtnText: { color: theme.primary, fontSize: 14, fontWeight: '700' },
-  publierBtn: {
-    flex: 1, backgroundColor: theme.primary, borderRadius: 12,
-    padding: 15, alignItems: 'center',
-  },
+  publierBtn: { flex: 1, backgroundColor: theme.primary, borderRadius: 12, padding: 15, alignItems: 'center' },
   publierBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
