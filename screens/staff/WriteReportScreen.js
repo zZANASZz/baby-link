@@ -667,7 +667,7 @@ export default function WriteReportScreen({ route, navigation }) {
 }
 
 const styles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background, height: '100%' },
+  container: { flex: 1, backgroundColor: theme.background, minHeight: '100%' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
 
   header: {
