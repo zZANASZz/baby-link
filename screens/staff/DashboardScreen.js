@@ -42,20 +42,17 @@ export default function DashboardScreen({ navigation }) {
 
         const today = new Date().toISOString().split('T')[0];
 
-        // Rapports du jour
         const { data: rapportsAujourdhui } = await supabase
           .from('rapports').select('*').eq('date', today).eq('brouillon', false)
           .in('enfant_id', enfantIds);
         const rapportsDuJour = rapportsAujourdhui || [];
 
-        // Présences du jour
         const { data: presData } = await supabase
           .from('presences_journalieres')
           .select('*').eq('date', today)
           .in('enfant_id', enfantIds);
         const nbPresents = (presData || []).filter(p => p.present === true).length;
 
-        // Messages non lus
         const { data: parentsDeLaCreche } = await supabase
           .from('profiles').select('id')
           .eq('creche_id', prof.creche_id).eq('role', 'parent');
@@ -69,12 +66,10 @@ export default function DashboardScreen({ navigation }) {
           messagesNonLus = msgs?.length || 0;
         }
 
-        // Enfants sans rapport aujourd'hui
         const rapportesIds = rapportsDuJour.map(r => r.enfant_id);
         const nonRaportes = (enfants || []).filter(e => !rapportesIds.includes(e.id));
         setEnfantsARapporter(nonRaportes);
 
-        // Calendrier des rapports
         if (enfantIds.length > 0) {
           const { data: tousRapports } = await supabase
             .from('rapports').select('date, enfant_id')
@@ -169,43 +164,31 @@ export default function DashboardScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Stats */}
+      {/* Stats — juste des compteurs, pas cliquables */}
       <View style={s.statsGrid}>
-        <TouchableOpacity
-          style={[s.statCard, { backgroundColor: theme.cardStat1 }]}
-          onPress={() => navigation.navigate('Children')}
-        >
+        <View style={[s.statCard, { backgroundColor: theme.cardStat1 }]}>
           <Text style={s.statEmoji}>👶</Text>
           <Text style={[s.statNumber, { color: theme.primary }]}>{stats.enfants}</Text>
           <Text style={s.statLabel}>{t('children')}</Text>
-        </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={[s.statCard, { backgroundColor: theme.cardStat2 }]}
-          onPress={() => navigation.navigate('Children')}
-        >
+        <View style={[s.statCard, { backgroundColor: theme.cardStat2 }]}>
           <Text style={s.statEmoji}>✓</Text>
           <Text style={[s.statNumber, { color: theme.success }]}>{stats.presents}</Text>
           <Text style={s.statLabel}>Présents</Text>
-        </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={[s.statCard, { backgroundColor: theme.cardStat3 }]}
-          onPress={() => navigation.navigate('Children')}
-        >
+        <View style={[s.statCard, { backgroundColor: theme.cardStat3 }]}>
           <Text style={s.statEmoji}>📋</Text>
           <Text style={[s.statNumber, { color: theme.warning }]}>{stats.rapports}</Text>
           <Text style={s.statLabel}>Rapports</Text>
-        </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={[s.statCard, { backgroundColor: theme.cardStat4 }]}
-          onPress={() => navigation.navigate('Messages')}
-        >
+        <View style={[s.statCard, { backgroundColor: theme.cardStat4 }]}>
           <Text style={s.statEmoji}>💬</Text>
           <Text style={[s.statNumber, { color: theme.teal }]}>{stats.messages}</Text>
           <Text style={s.statLabel}>Messages</Text>
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* Rapports à rédiger */}
@@ -297,14 +280,8 @@ export default function DashboardScreen({ navigation }) {
             const status = getDayStatus(dateStr);
             return (
               <View key={i} style={s.dayContainer}>
-                <View style={[
-                  s.day,
-                  isToday && { backgroundColor: theme.primary },
-                ]}>
-                  <Text style={[
-                    s.dayText,
-                    isToday && { color: '#fff', fontWeight: '700' },
-                  ]}>{day}</Text>
+                <View style={[s.day, isToday && { backgroundColor: theme.primary }]}>
+                  <Text style={[s.dayText, isToday && { color: '#fff', fontWeight: '700' }]}>{day}</Text>
                 </View>
                 {status === 'complete' && <View style={[s.statusDot, { backgroundColor: theme.success }]} />}
                 {status === 'partial' && <View style={[s.statusDot, { backgroundColor: theme.warning }]} />}
@@ -326,7 +303,7 @@ const styles = (theme) => StyleSheet.create({
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    paddingHorizontal: 16, paddingTop: 56, paddingBottom: 16,
+    paddingHorizontal: 16, paddingTop: 20, paddingBottom: 16,
   },
   date: { fontSize: 12, color: theme.textSecondary, marginBottom: 2 },
   creche: { fontSize: 22, fontWeight: '700', color: theme.text },
@@ -378,7 +355,7 @@ const styles = (theme) => StyleSheet.create({
   voirPlusBtn: { paddingTop: 10, alignItems: 'center' },
   voirPlusText: { fontSize: 13, color: theme.primary, fontWeight: '600' },
 
-  legend: { flexDirection: 'row', gap: 16, marginBottom: 12 },
+  legend: { flexDirection: 'row', gap: 16, marginBottom: 12, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: theme.textSecondary, fontSize: 11 },

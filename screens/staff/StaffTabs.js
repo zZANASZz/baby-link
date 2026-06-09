@@ -64,7 +64,7 @@ export default function StaffTabs({ navigation }) {
                 >
                   <Text style={s.navEmoji}>{tab.emoji}</Text>
                   {isActive && (
-                    <Text style={s.navLabel}>{t(tab.labelKey)}</Text>
+                    <Text style={s.navLabel} numberOfLines={1}>{t(tab.labelKey)}</Text>
                   )}
                 </TouchableOpacity>
               );
@@ -94,7 +94,7 @@ const styles = (theme) => StyleSheet.create({
   navBar: {
     backgroundColor: theme.background,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
   },
@@ -115,21 +115,23 @@ const styles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 6,
     borderRadius: 50,
     gap: 4,
+    overflow: 'hidden',
   },
   navItemActive: {
     backgroundColor: theme.primary,
   },
   navEmoji: {
-    fontSize: 16,
+    fontSize: 15,
   },
   navLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#ffffff',
+    flexShrink: 1,
   },
   content: {
     flex: 1,
