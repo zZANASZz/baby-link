@@ -346,7 +346,7 @@ export default function WriteReportScreen({ route, navigation }) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={s.inner} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.inner} showsVerticalScrollIndicator={false}>
         <Text style={s.titre}>{t('dailyReport')}</Text>
 
         {brouillonId && (
@@ -667,7 +667,7 @@ export default function WriteReportScreen({ route, navigation }) {
 }
 
 const styles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background, minHeight: '100%' },
+ container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
 
   header: {
