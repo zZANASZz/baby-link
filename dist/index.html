@@ -1,29 +1,39 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>Baby-link</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
-      html, body { height: 100%; }
-      body { overflow: hidden; overscroll-behavior: none; }
-      #root { display: flex; height: 100%; flex: 1; }
-      * { -webkit-tap-highlight-color: transparent; }
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
     </style>
-    <meta name="theme-color" content="#5b8fcf">
-    <meta name="description" content="Application de suivi pour crèches">
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Baby-link" />
-    <link rel="icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
-  </head>
+  <meta name="theme-color" content="#7c3aed">
+<meta name="description" content="Application de suivi pour crèches">
+<link rel="icon" href="/favicon.ico" /></head>
+
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
     <div id="root"></div>
-    <script src="/_expo/static/js/web/index-7ac67b9048158c8a86dbe793744d9ffc.js" defer></script>
-  </body>
+  <script src="/_expo/static/js/web/index-de6c15f6f0369ecbe793fc53b31859c3.js" defer></script>
+</body>
 </html>
