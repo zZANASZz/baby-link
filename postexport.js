@@ -4,13 +4,22 @@ const path = require('path');
 const indexPath = path.join(__dirname, 'dist', 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 
-// Fix viewport pour bloquer zoom et déplacement latéral
+// Fix viewport
 html = html.replace(
   '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />',
   '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />'
 );
 
-// Fix le style body pour permettre le scroll vertical
+// Fix styles
+html = html.replace(
+  '<style id="expo-reset">',
+  `<style id="expo-reset-extra">
+      input, textarea, select { font-size: 16px !important; touch-action: manipulation; }
+    </style>
+    <style id="expo-reset">`
+);
+
+// Fix body overflow
 html = html.replace(
   'body {\n        overflow: hidden;\n      }',
   'body {\n        overflow-x: hidden;\n        overflow-y: auto;\n      }'
