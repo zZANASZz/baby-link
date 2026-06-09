@@ -37,9 +37,19 @@ export default function StaffTabs({ navigation }) {
 
   const ActiveScreen = SCREENS[activeTab];
 
+  const navObj = {
+    navigate: (screen, params) => {
+      if (SCREENS[screen]) {
+        setActiveTab(screen);
+      } else if (navigation) {
+        navigation.navigate(screen, params);
+      }
+    },
+    goBack: () => navigation?.goBack?.(),
+  };
+
   return (
     <View style={s.container}>
-      {/* Barre de navigation en haut */}
       <SafeAreaView style={s.safeArea}>
         <View style={s.navBar}>
           <View style={s.navInner}>
@@ -63,19 +73,8 @@ export default function StaffTabs({ navigation }) {
         </View>
       </SafeAreaView>
 
-      {/* Contenu de l'écran actif */}
       <View style={s.content}>
-        <ActiveScreen navigation={{
-          navigate: (screen, params) => {
-            if (SCREENS[screen]) {
-              setActiveTab(screen);
-            } else if (navigation) {
-              navigation.navigate(screen, params);
-            }
-          },
-          goBack: () => navigation?.goBack?.(),
-          ...navigation,
-        }} />
+        <ActiveScreen navigation={navObj} />
       </View>
     </View>
   );
@@ -83,13 +82,14 @@ export default function StaffTabs({ navigation }) {
 
 const styles = (theme) => StyleSheet.create({
   container: {
-  flex: 1,
-  backgroundColor: theme.background,
-  ...(Platform.OS === 'web' ? { height: '100vh', overflow: 'hidden' } : {}),
-},
+    flex: 1,
+    backgroundColor: theme.background,
+    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column', height: '100vh' } : {}),
+  },
   safeArea: {
     backgroundColor: theme.background,
     paddingTop: Platform.OS === 'android' ? 32 : 0,
+    flexShrink: 0,
   },
   navBar: {
     backgroundColor: theme.background,
@@ -131,9 +131,8 @@ const styles = (theme) => StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
   },
-content: {
-  flex: 1,
-  overflow: 'hidden',
-  ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
-},
+  content: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { overflow: 'auto', minHeight: 0 } : {}),
+  },
 });
