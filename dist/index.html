@@ -5,25 +5,35 @@
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>Baby-link</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
-      html, body { height: 100%; }
-      body { overflow: hidden; }
-      #root { display: flex; height: 100%; flex: 1; }
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
     </style>
-    <meta name="theme-color" content="#7c3aed">
-    <meta name="description" content="Application de suivi pour crèches">
-    <link rel="icon" href="/favicon.ico" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Baby-link" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon.png" />
-  </head>
+  <meta name="theme-color" content="#7c3aed">
+<meta name="description" content="Application de suivi pour crèches">
+<link rel="icon" href="/favicon.ico" /></head>
+
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
     <div id="root"></div>
-    <script src="/_expo/static/js/web/index-6a4b6fc7b99117c0b830e31fefd1b54d.js" defer></script>
-  </body>
+  <script src="/_expo/static/js/web/index-db460300ab9c462812708e1a3d71e863.js" defer></script>
+</body>
 </html>

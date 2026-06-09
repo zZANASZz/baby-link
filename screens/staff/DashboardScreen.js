@@ -11,7 +11,7 @@ export default function DashboardScreen({ navigation }) {
   const { theme, t } = useTheme();
   const [profile, setProfile] = useState(null);
   const [creche, setCreche] = useState(null);
-  const [stats, setStats] = useState({ enfants: 0, rapports: 0, messages: 0, membres: 0 });
+  const [stats, setStats] = useState({ enfants: 0, rapports: 0, messages: 0, presents: 0 });
   const [rapportsDates, setRapportsDates] = useState({});
   const [totalEnfants, setTotalEnfants] = useState(0);
   const [enfantsARapporter, setEnfantsARapporter] = useState([]);
@@ -20,7 +20,7 @@ export default function DashboardScreen({ navigation }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => { loadData(); }, []);
-  useRealtime(['rapports', 'enfants', 'messages_parents', 'profiles'], loadData);
+  useRealtime(['rapports', 'enfants', 'messages_parents', 'profiles', 'presences_journalieres'], loadData);
 
   async function loadData() {
     try {
@@ -41,13 +41,21 @@ export default function DashboardScreen({ navigation }) {
         setTotalEnfants(nbEnfants);
 
         const today = new Date().toISOString().split('T')[0];
+
+        // Rapports du jour
         const { data: rapportsAujourdhui } = await supabase
-          .from('rapports').select('*').eq('date', today).eq('brouillon', false);
+          .from('rapports').select('*').eq('date', today).eq('brouillon', false)
+          .in('enfant_id', enfantIds);
+        const rapportsDuJour = rapportsAujourdhui || [];
 
-        const rapportsDuJour = (rapportsAujourdhui || []).filter(r =>
-          enfantIds.includes(r.enfant_id)
-        );
+        // Présences du jour
+        const { data: presData } = await supabase
+          .from('presences_journalieres')
+          .select('*').eq('date', today)
+          .in('enfant_id', enfantIds);
+        const nbPresents = (presData || []).filter(p => p.present === true).length;
 
+        // Messages non lus
         const { data: parentsDeLaCreche } = await supabase
           .from('profiles').select('id')
           .eq('creche_id', prof.creche_id).eq('role', 'parent');
@@ -61,13 +69,12 @@ export default function DashboardScreen({ navigation }) {
           messagesNonLus = msgs?.length || 0;
         }
 
-        const { data: membres } = await supabase
-          .from('profiles').select('id').eq('creche_id', prof.creche_id);
-
+        // Enfants sans rapport aujourd'hui
         const rapportesIds = rapportsDuJour.map(r => r.enfant_id);
         const nonRaportes = (enfants || []).filter(e => !rapportesIds.includes(e.id));
         setEnfantsARapporter(nonRaportes);
 
+        // Calendrier des rapports
         if (enfantIds.length > 0) {
           const { data: tousRapports } = await supabase
             .from('rapports').select('date, enfant_id')
@@ -90,7 +97,7 @@ export default function DashboardScreen({ navigation }) {
           enfants: nbEnfants,
           rapports: rapportsDuJour.length,
           messages: messagesNonLus,
-          membres: membres?.length || 0,
+          presents: nbPresents,
         });
       }
     } catch (e) { console.log('Erreur dashboard:', e); }
@@ -131,7 +138,7 @@ export default function DashboardScreen({ navigation }) {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const days = getDaysInMonth(currentMonth);
-  const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   const s = styles(theme);
 
   if (loading) return (
@@ -144,24 +151,32 @@ export default function DashboardScreen({ navigation }) {
     <ScrollView
       style={s.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+      showsVerticalScrollIndicator={false}
     >
+      {/* Header */}
       <View style={s.header}>
-        <Text style={s.date}>{formatToday()}</Text>
-        <Text style={s.creche}>{creche?.nom || 'Ma crèche'}</Text>
-        <Text style={s.role}>
-          {profile?.role === 'directrice' ? t('director') : t('nurseryWorker')}
-        </Text>
+        <View>
+          <Text style={s.date}>{formatToday()}</Text>
+          <Text style={s.creche}>{creche?.nom || 'Ma crèche'}</Text>
+          <Text style={s.role}>
+            {profile?.role === 'directrice' ? t('director') : t('nurseryWorker')}
+          </Text>
+        </View>
+        <View style={s.headerAvatar}>
+          <Text style={s.headerAvatarText}>
+            {profile?.prenom?.charAt(0)?.toUpperCase() || '?'}
+          </Text>
+        </View>
       </View>
 
+      {/* Stats */}
       <View style={s.statsGrid}>
         <TouchableOpacity
           style={[s.statCard, { backgroundColor: theme.cardStat1 }]}
           onPress={() => navigation.navigate('Children')}
         >
-          <View style={[s.statIcon, { backgroundColor: theme.primary + '30' }]}>
-            <Text style={s.statEmoji}>👶</Text>
-          </View>
-          <Text style={s.statNumber}>{stats.enfants}</Text>
+          <Text style={s.statEmoji}>👶</Text>
+          <Text style={[s.statNumber, { color: theme.primary }]}>{stats.enfants}</Text>
           <Text style={s.statLabel}>{t('children')}</Text>
         </TouchableOpacity>
 
@@ -169,36 +184,31 @@ export default function DashboardScreen({ navigation }) {
           style={[s.statCard, { backgroundColor: theme.cardStat2 }]}
           onPress={() => navigation.navigate('Children')}
         >
-          <View style={[s.statIcon, { backgroundColor: '#10b98130' }]}>
-            <Text style={s.statEmoji}>📋</Text>
-          </View>
-          <Text style={s.statNumber}>{stats.rapports}</Text>
-          <Text style={s.statLabel}>Rapports du jour</Text>
+          <Text style={s.statEmoji}>✓</Text>
+          <Text style={[s.statNumber, { color: theme.success }]}>{stats.presents}</Text>
+          <Text style={s.statLabel}>Présents</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[s.statCard, { backgroundColor: theme.cardStat3 }]}
-          onPress={() => navigation.navigate('Messages')}
+          onPress={() => navigation.navigate('Children')}
         >
-          <View style={[s.statIcon, { backgroundColor: '#f59e0b30' }]}>
-            <Text style={s.statEmoji}>💬</Text>
-          </View>
-          <Text style={s.statNumber}>{stats.messages}</Text>
-          <Text style={s.statLabel}>Messages non lus</Text>
+          <Text style={s.statEmoji}>📋</Text>
+          <Text style={[s.statNumber, { color: theme.warning }]}>{stats.rapports}</Text>
+          <Text style={s.statLabel}>Rapports</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[s.statCard, { backgroundColor: theme.cardStat4 }]}
-          onPress={() => navigation.navigate('Members')}
+          onPress={() => navigation.navigate('Messages')}
         >
-          <View style={[s.statIcon, { backgroundColor: '#ec489930' }]}>
-            <Text style={s.statEmoji}>👥</Text>
-          </View>
-          <Text style={s.statNumber}>{stats.membres}</Text>
-          <Text style={s.statLabel}>{t('membersTitle')}</Text>
+          <Text style={s.statEmoji}>💬</Text>
+          <Text style={[s.statNumber, { color: theme.teal }]}>{stats.messages}</Text>
+          <Text style={s.statLabel}>Messages</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Rapports à rédiger */}
       {enfantsARapporter.length > 0 && (
         <View style={s.section}>
           <View style={s.sectionHeader}>
@@ -207,32 +217,50 @@ export default function DashboardScreen({ navigation }) {
               <Text style={s.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
-          {enfantsARapporter.slice(0, 3).map(enfant => (
+          {enfantsARapporter.slice(0, 4).map((enfant, index) => (
             <TouchableOpacity
               key={enfant.id}
-              style={s.enfantRow}
+              style={[s.enfantRow, index === 0 && { borderTopWidth: 0 }]}
               onPress={() => navigation.navigate('Children')}
             >
-              <View style={s.avatar}>
-                <Text style={s.avatarText}>{enfant.prenom?.charAt(0).toLowerCase()}</Text>
+              <View style={[s.avatar, { backgroundColor: theme.primarySoft }]}>
+                <Text style={[s.avatarText, { color: theme.primary }]}>
+                  {enfant.prenom?.charAt(0).toUpperCase()}
+                </Text>
               </View>
-              <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
-              <Text style={s.plusIcon}>+</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
+                <Text style={s.enfantSection}>
+                  {enfant.section === 'grande' ? t('grandeSection') : t('petiteSection')}
+                </Text>
+              </View>
+              <View style={[s.todoTag, { backgroundColor: theme.warningLight }]}>
+                <Text style={[s.todoTagText, { color: theme.warning }]}>À rédiger</Text>
+              </View>
             </TouchableOpacity>
           ))}
+          {enfantsARapporter.length > 4 && (
+            <TouchableOpacity
+              style={s.voirPlusBtn}
+              onPress={() => navigation.navigate('Children')}
+            >
+              <Text style={s.voirPlusText}>+{enfantsARapporter.length - 4} autres enfants →</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
+      {/* Calendrier */}
       <View style={s.section}>
         <Text style={s.sectionTitle}>{t('reportCalendar')}</Text>
 
         <View style={s.legend}>
           <View style={s.legendItem}>
-            <View style={[s.legendDot, { backgroundColor: '#10b981' }]} />
+            <View style={[s.legendDot, { backgroundColor: theme.success }]} />
             <Text style={s.legendText}>{t('allReports')}</Text>
           </View>
           <View style={s.legendItem}>
-            <View style={[s.legendDot, { backgroundColor: '#f59e0b' }]} />
+            <View style={[s.legendDot, { backgroundColor: theme.warning }]} />
             <Text style={s.legendText}>{t('partialReports')}</Text>
           </View>
         </View>
@@ -256,8 +284,8 @@ export default function DashboardScreen({ navigation }) {
         </View>
 
         <View style={s.weekDays}>
-          {weekDays.map(d => (
-            <Text key={d} style={s.weekDay}>{d}</Text>
+          {weekDays.map((d, i) => (
+            <Text key={i} style={s.weekDay}>{d}</Text>
           ))}
         </View>
 
@@ -269,18 +297,24 @@ export default function DashboardScreen({ navigation }) {
             const status = getDayStatus(dateStr);
             return (
               <View key={i} style={s.dayContainer}>
-                <View style={[s.day, isToday && s.dayToday]}>
-                  <Text style={[s.dayText, isToday && s.dayTodayText]}>{day}</Text>
+                <View style={[
+                  s.day,
+                  isToday && { backgroundColor: theme.primary },
+                ]}>
+                  <Text style={[
+                    s.dayText,
+                    isToday && { color: '#fff', fontWeight: '700' },
+                  ]}>{day}</Text>
                 </View>
-                {status === 'complete' && <View style={[s.statusDot, { backgroundColor: '#10b981' }]} />}
-                {status === 'partial' && <View style={[s.statusDot, { backgroundColor: '#f59e0b' }]} />}
+                {status === 'complete' && <View style={[s.statusDot, { backgroundColor: theme.success }]} />}
+                {status === 'partial' && <View style={[s.statusDot, { backgroundColor: theme.warning }]} />}
               </View>
             );
           })}
         </View>
       </View>
 
-      <View style={{ height: 20 }} />
+      <View style={{ height: 30 }} />
     </ScrollView>
   );
 }
@@ -289,44 +323,83 @@ const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
-  header: { padding: 20, paddingTop: 60 },
-  date: { fontSize: 13, color: theme.textSecondary, marginBottom: 4 },
-  creche: { fontSize: 24, fontWeight: 'bold', color: theme.text, marginBottom: 4 },
-  role: { fontSize: 14, color: theme.textSecondary },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12, marginBottom: 8 },
-  statCard: { width: '47%', borderRadius: 16, padding: 16, minHeight: 110, justifyContent: 'center' },
-  statIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  statEmoji: { fontSize: 20 },
-  statNumber: { fontSize: 28, fontWeight: 'bold', color: theme.text },
-  statLabel: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
-  section: {
-    marginHorizontal: 16, marginTop: 16,
-    backgroundColor: theme.card, borderRadius: 16,
-    padding: 16, borderWidth: 1, borderColor: theme.border
+
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingHorizontal: 16, paddingTop: 56, paddingBottom: 16,
   },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: theme.text, marginBottom: 12 },
-  seeAll: { fontSize: 13, color: theme.primary },
-  enfantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: theme.border },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.border, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  avatarText: { color: theme.text, fontSize: 16, fontWeight: 'bold' },
-  enfantNom: { flex: 1, color: theme.text, fontSize: 15 },
-  plusIcon: { color: theme.primary, fontSize: 20, fontWeight: 'bold' },
+  date: { fontSize: 12, color: theme.textSecondary, marginBottom: 2 },
+  creche: { fontSize: 22, fontWeight: '700', color: theme.text },
+  role: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+  headerAvatar: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: theme.primaryLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  headerAvatarText: { fontSize: 16, fontWeight: '700', color: theme.primary },
+
+  statsGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingHorizontal: 16, gap: 10, marginBottom: 6,
+  },
+  statCard: {
+    width: '47%', borderRadius: 16, padding: 16,
+    alignItems: 'center', minHeight: 100,
+  },
+  statEmoji: { fontSize: 22, marginBottom: 6 },
+  statNumber: { fontSize: 28, fontWeight: '700', lineHeight: 32 },
+  statLabel: { fontSize: 11, color: theme.textSecondary, marginTop: 3, fontWeight: '500' },
+
+  section: {
+    marginHorizontal: 16, marginTop: 14,
+    backgroundColor: theme.card, borderRadius: 16,
+    padding: 16, borderWidth: 1, borderColor: theme.border,
+  },
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+  seeAll: { fontSize: 12, color: theme.primary, fontWeight: '600' },
+
+  enfantRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, borderTopWidth: 1, borderTopColor: theme.border,
+  },
+  avatar: {
+    width: 36, height: 36, borderRadius: 18,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarText: { fontSize: 15, fontWeight: '700' },
+  enfantNom: { fontSize: 14, fontWeight: '600', color: theme.text },
+  enfantSection: { fontSize: 11, color: theme.textSecondary, marginTop: 1 },
+  todoTag: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  todoTagText: { fontSize: 10, fontWeight: '700' },
+  voirPlusBtn: { paddingTop: 10, alignItems: 'center' },
+  voirPlusText: { fontSize: 13, color: theme.primary, fontWeight: '600' },
+
   legend: { flexDirection: 'row', gap: 16, marginBottom: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: theme.textSecondary, fontSize: 11 },
-  calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  calNavBtn: { color: theme.text, fontSize: 24, paddingHorizontal: 8 },
-  calMonth: { fontSize: 16, fontWeight: '600', color: theme.text },
-  weekDays: { flexDirection: 'row', marginBottom: 8 },
-  weekDay: { flex: 1, textAlign: 'center', color: theme.textSecondary, fontSize: 12 },
+
+  calendarHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 14,
+  },
+  calNavBtn: { color: theme.text, fontSize: 26, paddingHorizontal: 8, fontWeight: '300' },
+  calMonth: { fontSize: 15, fontWeight: '600', color: theme.text },
+
+  weekDays: { flexDirection: 'row', marginBottom: 6 },
+  weekDay: { flex: 1, textAlign: 'center', color: theme.textSecondary, fontSize: 11, fontWeight: '600' },
+
   daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayContainer: { width: '14.28%', alignItems: 'center', marginBottom: 8 },
+  dayContainer: { width: '14.28%', alignItems: 'center', marginBottom: 6 },
   emptyDay: { width: '14.28%' },
-  day: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  dayToday: { backgroundColor: theme.text },
-  dayText: { color: theme.text, fontSize: 13 },
-  dayTodayText: { color: theme.background, fontWeight: 'bold' },
-  statusDot: { width: 6, height: 6, borderRadius: 3, marginTop: 2 },
+  day: {
+    width: 30, height: 30, borderRadius: 15,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  dayText: { color: theme.text, fontSize: 12 },
+  statusDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },
 });
