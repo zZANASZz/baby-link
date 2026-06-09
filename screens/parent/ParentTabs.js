@@ -60,9 +60,6 @@ export default function ParentTabs({ navigation }) {
                   activeOpacity={0.7}
                 >
                   <Text style={s.navEmoji}>{tab.emoji}</Text>
-                  {isActive && (
-                    <Text style={s.navLabel} numberOfLines={1}>{t(tab.labelKey)}</Text>
-                  )}
                 </TouchableOpacity>
               );
             })}
@@ -109,26 +106,16 @@ const styles = (theme) => StyleSheet.create({
   },
   navItem: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 6,
+    paddingVertical: 8,
     borderRadius: 50,
-    gap: 4,
-    overflow: 'hidden',
   },
   navItemActive: {
     backgroundColor: theme.primary,
   },
   navEmoji: {
-    fontSize: 15,
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#ffffff',
-    flexShrink: 1,
+    fontSize: 18,
   },
   content: {
     flex: 1,
