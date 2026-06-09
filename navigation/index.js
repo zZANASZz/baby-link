@@ -29,7 +29,7 @@ export default function Navigation() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const [language, setLanguage] = useState('fr');
 
   const toggleTheme = () => setIsDark(prev => !prev);
@@ -82,10 +82,7 @@ export default function Navigation() {
 
   if (loading) return null;
 
-  const navTheme = isDark ? {
-    ...DarkTheme,
-    colors: { ...DarkTheme.colors, background: colors.dark.background }
-  } : {
+  const navTheme = {
     ...DefaultTheme,
     colors: { ...DefaultTheme.colors, background: colors.light.background }
   };
