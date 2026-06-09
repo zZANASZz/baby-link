@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { ThemeContext, colors, translations } from '../lib/theme';
 
@@ -35,6 +36,20 @@ export default function Navigation() {
   const toggleTheme = () => setIsDark(prev => !prev);
   const theme = isDark ? colors.dark : colors.light;
   const t = (key) => translations[language]?.[key] || translations['fr']?.[key] || key;
+
+  // Forcer le titre Baby-link en permanence sur le web
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    document.title = 'Baby-link';
+    const observer = new MutationObserver(() => {
+      if (document.title !== 'Baby-link') {
+        document.title = 'Baby-link';
+      }
+    });
+    const titleEl = document.querySelector('title');
+    if (titleEl) observer.observe(titleEl, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -89,7 +104,7 @@ export default function Navigation() {
 
   return (
     <ThemeContext.Provider value={{ isDark, toggleTheme, theme, language, setLanguage, t }}>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer theme={navTheme} documentTitle={{ formatter: () => 'Baby-link' }}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {!session ? (
             <>
