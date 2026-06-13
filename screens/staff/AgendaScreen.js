@@ -171,13 +171,13 @@ export default function AgendaScreen() {
                     )}
                   </View>
                   {isDirectrice && (
-                    <Pressable
-                      onPress={() => supprimerEvent(event)}
-                      style={({ pressed }) => [s.deleteBtn, pressed && { opacity: 0.5 }]}
-                      hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    <View
+                      style={s.deleteBtn}
+                      onStartShouldSetResponder={() => true}
+                      onResponderGrant={() => supprimerEvent(event)}
                     >
                       <Text style={s.deleteIcon}>🗑️</Text>
-                    </Pressable>
+                    </View>
                   )}
                 </View>
               );
@@ -290,7 +290,7 @@ const styles = (theme) => StyleSheet.create({
   },
   eventTypeText: { color: theme.primary, fontSize: 11, fontWeight: '600' },
   eventDesc: { color: theme.textSecondary, fontSize: 13 },
-  deleteBtn: { padding: 8 },
+  deleteBtn: { padding: 10, zIndex: 999 },
   deleteIcon: { fontSize: 20 },
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: {

@@ -401,13 +401,13 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
                 </TouchableOpacity>
               </View>
 
-              <Pressable
-                style={({ pressed }) => [s.deleteBtn, pressed && { opacity: 0.5 }]}
-                onPress={() => onSupprimerEnfant(enfant)}
-                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              <View
+                style={s.deleteBtn}
+                onStartShouldSetResponder={() => true}
+                onResponderGrant={() => onSupprimerEnfant(enfant)}
               >
                 <Text style={s.deleteBtnIcon}>🗑️</Text>
-              </Pressable>
+              </View>
             </View>
           </View>
         );
@@ -469,7 +469,7 @@ const styles = (theme) => StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '600' },
   presenceBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   presenceBadgeText: { fontSize: 10, fontWeight: '700' },
-  deleteBtn: { padding: 4 },
+  deleteBtn: { padding: 10, zIndex: 999 },
   deleteBtnIcon: { fontSize: 16 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },

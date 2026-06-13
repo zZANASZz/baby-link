@@ -219,13 +219,13 @@ export default function PhotosScreen() {
                       >
                         <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
                       </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [s.deletePhotoBtn, pressed && { opacity: 0.5 }]}
-                        onPress={() => supprimerPhoto(photo)}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      <View
+                        style={s.deletePhotoBtn}
+                        onStartShouldSetResponder={() => true}
+                        onResponderGrant={() => supprimerPhoto(photo)}
                       >
                         <Text style={s.deletePhotoBtnText}>🗑️</Text>
-                      </Pressable>
+                      </View>
                     </View>
                   </View>
                 ))}
@@ -293,7 +293,7 @@ const styles = (theme) => StyleSheet.create({
   photoActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 6 },
   avatarBtn: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   avatarBtnText: { color: theme.primary, fontSize: 12, fontWeight: '600' },
-  deletePhotoBtn: { padding: 8 },
+  deletePhotoBtn: { padding: 10, zIndex: 999 },
   deletePhotoBtnText: { fontSize: 20 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: {
