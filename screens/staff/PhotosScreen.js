@@ -171,13 +171,13 @@ export default function PhotosScreen() {
                         <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
                       </TouchableOpacity>
                       {/* Poubelle — onTouchEnd pour iOS Safari */}
-                      <View
-                        style={s.deletePhotoBtn}
-                        onTouchEnd={(e) => { e.stopPropagation(); supprimerPhoto(photo); }}
-                        onClick={() => supprimerPhoto(photo)}
-                      >
-                        <Text style={s.deletePhotoBtnText}>🗑️</Text>
-                      </View>
+                      <TouchableOpacity
+  onPress={() => onSupprimerEnfant(enfant)}
+  accessibilityRole="button"
+  style={s.deleteBtn}
+>
+  <Text style={s.deleteBtnIcon}>🗑️</Text>
+</TouchableOpacity>
                     </View>
                   </View>
                 ))}

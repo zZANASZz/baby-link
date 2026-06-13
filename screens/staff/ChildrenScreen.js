@@ -320,13 +320,13 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
               </TouchableOpacity>
 
               {/* Poubelle — onTouchEnd pour iOS Safari */}
-              <View
-                style={s.deleteBtn}
-                onTouchEnd={(e) => { e.stopPropagation(); onSupprimerEnfant(enfant); }}
-                onClick={() => onSupprimerEnfant(enfant)}
-              >
-                <Text style={s.deleteBtnIcon}>🗑️</Text>
-              </View>
+              <TouchableOpacity
+  onPress={() => onSupprimerEnfant(enfant)}
+  accessibilityRole="button"
+  style={s.deleteBtn}
+>
+  <Text style={s.deleteBtnIcon}>🗑️</Text>
+</TouchableOpacity>
             </View>
           </View>
         );

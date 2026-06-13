@@ -139,13 +139,13 @@ export default function AgendaScreen() {
                     {event.description && <Text style={s.eventDesc}>{event.description}</Text>}
                   </View>
                   {isDirectrice && (
-                    <View
-                      style={s.deleteBtn}
-                      onTouchEnd={(e) => { e.stopPropagation(); supprimerEvent(event); }}
-                      onClick={() => supprimerEvent(event)}
-                    >
-                      <Text style={s.deleteIcon}>🗑️</Text>
-                    </View>
+                    <TouchableOpacity
+  onPress={() => onSupprimerEnfant(enfant)}
+  accessibilityRole="button"
+  style={s.deleteBtn}
+>
+  <Text style={s.deleteBtnIcon}>🗑️</Text>
+</TouchableOpacity>
                   )}
                 </View>
               );
