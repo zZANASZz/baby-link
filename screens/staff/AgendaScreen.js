@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput,
+  TouchableOpacity, TextInput, Modal,
   Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
@@ -9,6 +9,27 @@ import { supabase } from '../../lib/supabase';
 import ModalWithKeyboard from '../../components/ModalWithKeyboard';
 
 const EVENT_TYPES = ['Fermeture', 'Sortie', 'Vaccination', 'Fête', 'Réunion', 'Autre'];
+
+function ConfirmModal({ visible, message, onConfirm, onCancel, theme }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <View style={{ backgroundColor: theme.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 320 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 8 }}>🗑️ Supprimer</Text>
+          <Text style={{ fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginBottom: 24 }}>{message}</Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity onPress={onCancel} style={{ flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center' }}>
+              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onConfirm} style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#e05c5c', alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Supprimer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 function normaliserDate(input) {
   if (!input) return null;
@@ -41,6 +62,7 @@ export default function AgendaScreen() {
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [adding, setAdding] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ visible: false, event: null });
 
   useEffect(() => { loadData(); }, []);
 
@@ -50,8 +72,7 @@ export default function AgendaScreen() {
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setProfile(prof);
       if (prof?.creche_id) {
-        const { data: evts } = await supabase
-          .from('nursery_events').select('*').eq('creche_id', prof.creche_id).order('date', { ascending: true });
+        const { data: evts } = await supabase.from('nursery_events').select('*').eq('creche_id', prof.creche_id).order('date', { ascending: true });
         setEvents(evts || []);
       }
     } catch (e) { console.log(e); }
@@ -78,17 +99,12 @@ export default function AgendaScreen() {
     setAdding(false);
   }
 
-  function supprimerEvent(event) {
-    Alert.alert('🗑️ Supprimer', `Supprimer "${event.titre}" ?`, [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer', style: 'destructive',
-        onPress: async () => {
-          await supabase.from('nursery_events').delete().eq('id', event.id);
-          setEvents(prev => prev.filter(e => e.id !== event.id));
-        }
-      }
-    ]);
+  async function confirmerSuppression() {
+    const event = confirmModal.event;
+    setConfirmModal({ visible: false, event: null });
+    if (!event) return;
+    await supabase.from('nursery_events').delete().eq('id', event.id);
+    setEvents(prev => prev.filter(e => e.id !== event.id));
   }
 
   const isDirectrice = profile?.role === 'directrice';
@@ -98,6 +114,14 @@ export default function AgendaScreen() {
 
   return (
     <View style={s.container}>
+      <ConfirmModal
+        visible={confirmModal.visible}
+        message={`Supprimer "${confirmModal.event?.titre}" ?`}
+        onConfirm={confirmerSuppression}
+        onCancel={() => setConfirmModal({ visible: false, event: null })}
+        theme={theme}
+      />
+
       <View style={s.header}>
         <Text style={s.title}>Agenda</Text>
         {isDirectrice && (
@@ -107,14 +131,7 @@ export default function AgendaScreen() {
         )}
       </View>
 
-      {isDirectrice && events.length > 0 && (
-        <Text style={s.hint}>💡 Appui long sur un événement pour le supprimer</Text>
-      )}
-
-      <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />} showsVerticalScrollIndicator={false}>
         {events.length === 0 ? (
           <View style={s.empty}>
             <Text style={s.emptyIcon}>📅</Text>
@@ -126,13 +143,7 @@ export default function AgendaScreen() {
             {events.map(event => {
               const d = formatDate(event.date);
               return (
-                <TouchableOpacity
-                  key={event.id}
-                  style={s.eventCard}
-                  onLongPress={() => isDirectrice && supprimerEvent(event)}
-                  delayLongPress={600}
-                  activeOpacity={0.8}
-                >
+                <View key={event.id} style={s.eventCard}>
                   <View style={s.eventLeft}>
                     <View style={s.eventDateBox}>
                       <Text style={s.eventDay}>{d ? d.toLocaleDateString('fr-FR', { day: '2-digit' }) : '?'}</Text>
@@ -141,14 +152,15 @@ export default function AgendaScreen() {
                   </View>
                   <View style={s.eventRight}>
                     <Text style={s.eventTitre}>{event.titre}</Text>
-                    {event.type && (
-                      <View style={s.eventTypeBadge}>
-                        <Text style={s.eventTypeText}>{event.type}</Text>
-                      </View>
-                    )}
+                    {event.type && <View style={s.eventTypeBadge}><Text style={s.eventTypeText}>{event.type}</Text></View>}
                     {event.description && <Text style={s.eventDesc}>{event.description}</Text>}
                   </View>
-                </TouchableOpacity>
+                  {isDirectrice && (
+                    <TouchableOpacity style={s.deleteBtn} onPress={() => setConfirmModal({ visible: true, event })}>
+                      <Text style={s.deleteIcon}>🗑️</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               );
             })}
           </View>
@@ -156,14 +168,9 @@ export default function AgendaScreen() {
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      <ModalWithKeyboard
-        visible={modalVisible}
-        onClose={() => { setModalVisible(false); setTitre(''); setType(''); setDate(''); setDescription(''); }}
-        title="Nouvel événement"
-      >
+      <ModalWithKeyboard visible={modalVisible} onClose={() => { setModalVisible(false); setTitre(''); setType(''); setDate(''); setDescription(''); }} title="Nouvel événement">
         <Text style={s.inputLabel}>Titre</Text>
-        <TextInput style={s.input} placeholder="Ex: Fermeture exceptionnelle"
-          placeholderTextColor={theme.placeholder} value={titre} onChangeText={setTitre} autoFocus />
+        <TextInput style={s.input} placeholder="Ex: Fermeture exceptionnelle" placeholderTextColor={theme.placeholder} value={titre} onChangeText={setTitre} autoFocus />
         <Text style={s.inputLabel}>Type</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
           {EVENT_TYPES.map(tp => (
@@ -173,15 +180,10 @@ export default function AgendaScreen() {
           ))}
         </ScrollView>
         <Text style={s.inputLabel}>Date (jj-mm-aaaa)</Text>
-        <TextInput style={s.input} placeholder="Ex: 25-12-2026"
-          placeholderTextColor={theme.placeholder} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
+        <TextInput style={s.input} placeholder="Ex: 25-12-2026" placeholderTextColor={theme.placeholder} value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" />
         <Text style={s.inputLabel}>Description (optionnel)</Text>
-        <TextInput style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]} placeholder="Détails..."
-          placeholderTextColor={theme.placeholder} value={description} onChangeText={setDescription} multiline />
-        <TouchableOpacity
-          style={[s.modalBtn, (!titre.trim() || !date.trim()) && s.modalBtnDisabled]}
-          onPress={ajouterEvent} disabled={adding || !titre.trim() || !date.trim()}
-        >
+        <TextInput style={[s.input, { minHeight: 80, textAlignVertical: 'top' }]} placeholder="Détails..." placeholderTextColor={theme.placeholder} value={description} onChangeText={setDescription} multiline />
+        <TouchableOpacity style={[s.modalBtn, (!titre.trim() || !date.trim()) && s.modalBtnDisabled]} onPress={ajouterEvent} disabled={adding || !titre.trim() || !date.trim()}>
           {adding ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>Créer l'événement</Text>}
         </TouchableOpacity>
       </ModalWithKeyboard>
@@ -197,7 +199,6 @@ const styles = (theme) => StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
   addBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  hint: { fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginBottom: 8, fontStyle: 'italic' },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15, marginBottom: 8 },
@@ -213,6 +214,8 @@ const styles = (theme) => StyleSheet.create({
   eventTypeBadge: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 4 },
   eventTypeText: { color: theme.primary, fontSize: 11, fontWeight: '600' },
   eventDesc: { color: theme.textSecondary, fontSize: 13 },
+  deleteBtn: { padding: 10 },
+  deleteIcon: { fontSize: 20 },
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: { backgroundColor: theme.inputBg, borderRadius: 12, borderWidth: 1, borderColor: theme.inputBorder, color: theme.text, fontSize: 15, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
   typeChip: { borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.card, marginRight: 8 },

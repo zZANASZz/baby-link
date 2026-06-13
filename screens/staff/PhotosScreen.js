@@ -1,14 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Image, Alert,
-  ActivityIndicator, RefreshControl, Modal
+  TouchableOpacity, Image, Modal,
+  Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import { useRealtime } from '../../lib/useRealtime';
+
+function ConfirmModal({ visible, message, onConfirm, onCancel, theme }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <View style={{ backgroundColor: theme.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 320 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 8 }}>🗑️ Supprimer</Text>
+          <Text style={{ fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginBottom: 24 }}>{message}</Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity onPress={onCancel} style={{ flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center' }}>
+              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onConfirm} style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#e05c5c', alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Supprimer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function PhotosScreen() {
   const { theme, t } = useTheme();
@@ -21,6 +42,7 @@ export default function PhotosScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalSource, setModalSource] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ visible: false, photo: null });
 
   useEffect(() => { loadData(); }, []);
 
@@ -54,8 +76,7 @@ export default function PhotosScreen() {
 
   async function loadPhotos(enfantId) {
     try {
-      const { data } = await supabase.from('photos_enfants').select('*')
-        .eq('enfant_id', enfantId).order('created_at', { ascending: false });
+      const { data } = await supabase.from('photos_enfants').select('*').eq('enfant_id', enfantId).order('created_at', { ascending: false });
       setPhotos(data || []);
     } catch (e) { console.log(e); }
   }
@@ -99,17 +120,12 @@ export default function PhotosScreen() {
     setUploading(false);
   }
 
-  function supprimerPhoto(photo) {
-    Alert.alert('🗑️ Supprimer', 'Supprimer cette photo ?', [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'), style: 'destructive',
-        onPress: async () => {
-          await supabase.from('photos_enfants').delete().eq('id', photo.id);
-          setPhotos(prev => prev.filter(p => p.id !== photo.id));
-        }
-      }
-    ]);
+  async function confirmerSuppression() {
+    const photo = confirmModal.photo;
+    setConfirmModal({ visible: false, photo: null });
+    if (!photo) return;
+    await supabase.from('photos_enfants').delete().eq('id', photo.id);
+    setPhotos(prev => prev.filter(p => p.id !== photo.id));
   }
 
   async function setAsAvatar(photo) {
@@ -127,6 +143,14 @@ export default function PhotosScreen() {
 
   return (
     <View style={s.container}>
+      <ConfirmModal
+        visible={confirmModal.visible}
+        message="Supprimer cette photo ?"
+        onConfirm={confirmerSuppression}
+        onCancel={() => setConfirmModal({ visible: false, photo: null })}
+        theme={theme}
+      />
+
       <View style={s.header}>
         <Text style={s.title}>{t('photosTitle')}</Text>
         <TouchableOpacity style={s.uploadBtn} onPress={() => setModalSource(true)} disabled={uploading || !selectedEnfant}>
@@ -140,19 +164,12 @@ export default function PhotosScreen() {
         <>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.enfantSelector}>
             {enfants.map(enfant => (
-              <TouchableOpacity key={enfant.id}
-                style={[s.enfantChip, selectedEnfant?.id === enfant.id && s.enfantChipActive]}
-                onPress={() => setSelectedEnfant(enfant)}
-              >
+              <TouchableOpacity key={enfant.id} style={[s.enfantChip, selectedEnfant?.id === enfant.id && s.enfantChipActive]} onPress={() => setSelectedEnfant(enfant)}>
                 <Avatar enfant={enfant} size={44} />
                 <Text style={[s.enfantChipText, selectedEnfant?.id === enfant.id && s.enfantChipTextActive]}>{enfant.prenom}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
-
-          {photos.length > 0 && (
-            <Text style={s.hint}>💡 Appui long sur une photo pour la supprimer</Text>
-          )}
 
           <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}>
             {photos.length === 0 ? (
@@ -166,19 +183,17 @@ export default function PhotosScreen() {
             ) : (
               <View style={s.photosGrid}>
                 {photos.map(photo => (
-                  <TouchableOpacity
-                    key={photo.id}
-                    style={s.photoContainer}
-                    onPress={() => setAsAvatar(photo)}
-                    onLongPress={() => supprimerPhoto(photo)}
-                    delayLongPress={600}
-                    activeOpacity={0.85}
-                  >
+                  <View key={photo.id} style={s.photoContainer}>
                     <Image source={{ uri: photo.url }} style={s.photo} />
-                    <View style={s.photoLabel}>
-                      <Text style={s.photoLabelText}>Tap = Avatar · Long = Supprimer</Text>
+                    <View style={s.photoActions}>
+                      <TouchableOpacity style={s.avatarBtn} onPress={() => setAsAvatar(photo)}>
+                        <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={s.deletePhotoBtn} onPress={() => setConfirmModal({ visible: true, photo })}>
+                        <Text style={s.deletePhotoBtnText}>🗑️</Text>
+                      </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 ))}
               </View>
             )}
@@ -214,12 +229,11 @@ const styles = (theme) => StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
   uploadBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
   uploadBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  enfantSelector: { paddingHorizontal: 16, marginBottom: 8, maxHeight: 80 },
+  enfantSelector: { paddingHorizontal: 16, marginBottom: 16, maxHeight: 80 },
   enfantChip: { alignItems: 'center', marginRight: 16, opacity: 0.5 },
   enfantChipActive: { opacity: 1 },
   enfantChipText: { color: theme.textSecondary, fontSize: 12, marginTop: 4 },
   enfantChipTextActive: { color: theme.primary, fontWeight: '600' },
-  hint: { fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginBottom: 8, fontStyle: 'italic' },
   empty: { alignItems: 'center', marginTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15, marginBottom: 16 },
@@ -228,8 +242,11 @@ const styles = (theme) => StyleSheet.create({
   photosGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8, gap: 8 },
   photoContainer: { width: '47%', marginBottom: 8 },
   photo: { width: '100%', height: 160, borderRadius: 12 },
-  photoLabel: { paddingVertical: 4, alignItems: 'center' },
-  photoLabelText: { fontSize: 9, color: theme.textSecondary, fontStyle: 'italic' },
+  photoActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 6 },
+  avatarBtn: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  avatarBtnText: { color: theme.primary, fontSize: 12, fontWeight: '600' },
+  deletePhotoBtn: { padding: 8 },
+  deletePhotoBtnText: { fontSize: 20 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: theme.text, marginBottom: 20, textAlign: 'center' },

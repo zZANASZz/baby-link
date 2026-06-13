@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput,
+  TouchableOpacity, TextInput, Modal,
   Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -10,6 +10,34 @@ import { supabase } from '../../lib/supabase';
 import ModalWithKeyboard from '../../components/ModalWithKeyboard';
 import Avatar from '../../components/Avatar';
 import { useRealtime } from '../../lib/useRealtime';
+
+// Modal de confirmation custom (remplace Alert.alert qui ne marche pas sur iOS PWA)
+function ConfirmModal({ visible, message, onConfirm, onCancel, theme }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <View style={{ backgroundColor: theme.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 320 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 8 }}>🗑️ Supprimer</Text>
+          <Text style={{ fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginBottom: 24 }}>{message}</Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={onCancel}
+              style={{ flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center' }}
+            >
+              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onConfirm}
+              style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#e05c5c', alignItems: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Supprimer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function ChildrenScreen({ navigation }) {
   const { theme, t } = useTheme();
@@ -25,6 +53,7 @@ export default function ChildrenScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [presences, setPresences] = useState({});
   const [rapportsDuJour, setRapportsDuJour] = useState({});
+  const [confirmModal, setConfirmModal] = useState({ visible: false, enfant: null });
 
   useEffect(() => { loadData(); }, []);
   useRealtime(['enfants', 'presences_journalieres', 'rapports'], loadData);
@@ -32,23 +61,17 @@ export default function ChildrenScreen({ navigation }) {
   async function loadData() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: prof } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single();
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setProfile(prof);
       if (prof?.creche_id) {
-        const { data: enf } = await supabase
-          .from('enfants').select('*').eq('creche_id', prof.creche_id).order('prenom');
+        const { data: enf } = await supabase.from('enfants').select('*').eq('creche_id', prof.creche_id).order('prenom');
         setEnfants(enf || []);
         const today = new Date().toISOString().split('T')[0];
-        const { data: presData } = await supabase
-          .from('presences_journalieres').select('*').eq('date', today)
-          .in('enfant_id', (enf || []).map(e => e.id));
+        const { data: presData } = await supabase.from('presences_journalieres').select('*').eq('date', today).in('enfant_id', (enf || []).map(e => e.id));
         const presMap = {};
         (presData || []).forEach(p => { presMap[p.enfant_id] = p.present; });
         setPresences(presMap);
-        const { data: rapData } = await supabase
-          .from('rapports').select('enfant_id, brouillon').eq('date', today)
-          .in('enfant_id', (enf || []).map(e => e.id));
+        const { data: rapData } = await supabase.from('rapports').select('enfant_id, brouillon').eq('date', today).in('enfant_id', (enf || []).map(e => e.id));
         const rapMap = {};
         (rapData || []).forEach(r => { rapMap[r.enfant_id] = r.brouillon ? 'brouillon' : 'publie'; });
         setRapportsDuJour(rapMap);
@@ -64,9 +87,7 @@ export default function ChildrenScreen({ navigation }) {
       const actuel = presences[enfantId];
       const nouvelEtat = actuel === undefined ? true : actuel === true ? false : true;
       setPresences(prev => ({ ...prev, [enfantId]: nouvelEtat }));
-      const { data: existing } = await supabase
-        .from('presences_journalieres').select('id')
-        .eq('enfant_id', enfantId).eq('date', today).maybeSingle();
+      const { data: existing } = await supabase.from('presences_journalieres').select('id').eq('enfant_id', enfantId).eq('date', today).maybeSingle();
       if (existing) {
         await supabase.from('presences_journalieres').update({ present: nouvelEtat }).eq('id', existing.id);
       } else {
@@ -111,25 +132,16 @@ export default function ChildrenScreen({ navigation }) {
     setAdding(false);
   }
 
-  function supprimerEnfant(enfant) {
-    Alert.alert(
-      '🗑️ Supprimer',
-      `Supprimer ${enfant.prenom} et tous ses rapports ?`,
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('delete'), style: 'destructive',
-          onPress: async () => {
-            await supabase.from('rapports').delete().eq('enfant_id', enfant.id);
-            await supabase.from('enfants_parents').delete().eq('enfant_id', enfant.id);
-            await supabase.from('photos_enfants').delete().eq('enfant_id', enfant.id);
-            await supabase.from('presences_journalieres').delete().eq('enfant_id', enfant.id);
-            await supabase.from('enfants').delete().eq('id', enfant.id);
-            setEnfants(prev => prev.filter(e => e.id !== enfant.id));
-          }
-        }
-      ]
-    );
+  async function confirmerSuppression() {
+    const enfant = confirmModal.enfant;
+    setConfirmModal({ visible: false, enfant: null });
+    if (!enfant) return;
+    await supabase.from('rapports').delete().eq('enfant_id', enfant.id);
+    await supabase.from('enfants_parents').delete().eq('enfant_id', enfant.id);
+    await supabase.from('photos_enfants').delete().eq('enfant_id', enfant.id);
+    await supabase.from('presences_journalieres').delete().eq('enfant_id', enfant.id);
+    await supabase.from('enfants').delete().eq('id', enfant.id);
+    setEnfants(prev => prev.filter(e => e.id !== enfant.id));
   }
 
   async function copierCode(code) {
@@ -137,9 +149,7 @@ export default function ChildrenScreen({ navigation }) {
     Alert.alert('✅ Copié !', code);
   }
 
-  const enfantsFiltres = enfants.filter(e =>
-    `${e.prenom} ${e.nom || ''}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const enfantsFiltres = enfants.filter(e => `${e.prenom} ${e.nom || ''}`.toLowerCase().includes(search.toLowerCase()));
   const petiteSection = enfantsFiltres.filter(e => e.section === 'petite' || !e.section);
   const grandeSection = enfantsFiltres.filter(e => e.section === 'grande');
   const totalPresents = Object.values(presences).filter(v => v === true).length;
@@ -151,6 +161,14 @@ export default function ChildrenScreen({ navigation }) {
 
   return (
     <View style={s.container}>
+      <ConfirmModal
+        visible={confirmModal.visible}
+        message={`Supprimer ${confirmModal.enfant?.prenom} et tous ses rapports ?`}
+        onConfirm={confirmerSuppression}
+        onCancel={() => setConfirmModal({ visible: false, enfant: null })}
+        theme={theme}
+      />
+
       <View style={s.header}>
         <Text style={s.title}>{t('children')}</Text>
         <TouchableOpacity style={s.addBtn} onPress={() => setModalAdd(true)}>
@@ -160,8 +178,7 @@ export default function ChildrenScreen({ navigation }) {
 
       <View style={s.searchBar}>
         <Text style={s.searchIcon}>🔍</Text>
-        <TextInput style={s.searchInput} placeholder={t('searchChild')}
-          placeholderTextColor={theme.placeholder} value={search} onChangeText={setSearch} />
+        <TextInput style={s.searchInput} placeholder={t('searchChild')} placeholderTextColor={theme.placeholder} value={search} onChangeText={setSearch} />
         {search.length > 0 && <TouchableOpacity onPress={() => setSearch('')}><Text style={s.searchClear}>✕</Text></TouchableOpacity>}
       </View>
 
@@ -180,17 +197,9 @@ export default function ChildrenScreen({ navigation }) {
         </View>
       </View>
 
-      <Text style={s.hint}>💡 Appui long sur un enfant pour le supprimer</Text>
-
-      <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />} showsVerticalScrollIndicator={false}>
         {enfants.length === 0 ? (
-          <View style={s.empty}>
-            <Text style={s.emptyIcon}>👶</Text>
-            <Text style={s.emptyText}>{t('noChildren')}</Text>
-          </View>
+          <View style={s.empty}><Text style={s.emptyIcon}>👶</Text><Text style={s.emptyText}>{t('noChildren')}</Text></View>
         ) : (
           <View style={s.listContainer}>
             <SectionBlock
@@ -198,54 +207,37 @@ export default function ChildrenScreen({ navigation }) {
               enfants={petiteSection} couleurPill={theme.petiteSection} couleurPillText={theme.petiteSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onLongPressEnfant={supprimerEnfant}
-              onTogglePresence={togglePresence}
-              theme={theme} t={t}
+              onSupprimerEnfant={(enfant) => setConfirmModal({ visible: true, enfant })}
+              onTogglePresence={togglePresence} theme={theme} t={t}
             />
             <SectionBlock
               titre={t('grandeSection')} sousTitre="18–36 mois"
               enfants={grandeSection} couleurPill={theme.grandeSection} couleurPillText={theme.grandeSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onLongPressEnfant={supprimerEnfant}
-              onTogglePresence={togglePresence}
-              theme={theme} t={t}
+              onSupprimerEnfant={(enfant) => setConfirmModal({ visible: true, enfant })}
+              onTogglePresence={togglePresence} theme={theme} t={t}
             />
           </View>
         )}
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      <ModalWithKeyboard
-        visible={modalAdd}
-        onClose={() => { setModalAdd(false); setPrenom(''); setDateNaissance(''); setSection('petite'); }}
-        title={t('addChildTitle')}
-      >
+      <ModalWithKeyboard visible={modalAdd} onClose={() => { setModalAdd(false); setPrenom(''); setDateNaissance(''); setSection('petite'); }} title={t('addChildTitle')}>
         <Text style={s.inputLabel}>{t('firstName')} *</Text>
-        <TextInput style={s.input} placeholder={t('firstName')} placeholderTextColor={theme.placeholder}
-          value={prenom} onChangeText={setPrenom} autoFocus />
+        <TextInput style={s.input} placeholder={t('firstName')} placeholderTextColor={theme.placeholder} value={prenom} onChangeText={setPrenom} autoFocus />
         <Text style={s.inputLabel}>Date de naissance (optionnel)</Text>
-        <TextInput style={s.input} placeholder="Ex: 15-03-2024" placeholderTextColor={theme.placeholder}
-          value={dateNaissance} onChangeText={setDateNaissance} keyboardType="numbers-and-punctuation" />
+        <TextInput style={s.input} placeholder="Ex: 15-03-2024" placeholderTextColor={theme.placeholder} value={dateNaissance} onChangeText={setDateNaissance} keyboardType="numbers-and-punctuation" />
         <Text style={s.inputLabel}>Section</Text>
         <View style={s.sectionToggle}>
-          <TouchableOpacity
-            style={[s.sectionToggleBtn, section === 'petite' && { backgroundColor: theme.petiteSection, borderColor: theme.petiteSectionText }]}
-            onPress={() => setSection('petite')}
-          >
+          <TouchableOpacity style={[s.sectionToggleBtn, section === 'petite' && { backgroundColor: theme.petiteSection, borderColor: theme.petiteSectionText }]} onPress={() => setSection('petite')}>
             <Text style={[s.sectionToggleBtnText, section === 'petite' && { color: theme.petiteSectionText, fontWeight: '700' }]}>👶 {t('petiteSection')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.sectionToggleBtn, section === 'grande' && { backgroundColor: theme.grandeSection, borderColor: theme.grandeSectionText }]}
-            onPress={() => setSection('grande')}
-          >
+          <TouchableOpacity style={[s.sectionToggleBtn, section === 'grande' && { backgroundColor: theme.grandeSection, borderColor: theme.grandeSectionText }]} onPress={() => setSection('grande')}>
             <Text style={[s.sectionToggleBtnText, section === 'grande' && { color: theme.grandeSectionText, fontWeight: '700' }]}>🧒 {t('grandeSection')}</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[s.modalBtn, !prenom.trim() && s.modalBtnDisabled]}
-          onPress={ajouterEnfant} disabled={adding || !prenom.trim()}
-        >
+        <TouchableOpacity style={[s.modalBtn, !prenom.trim() && s.modalBtnDisabled]} onPress={ajouterEnfant} disabled={adding || !prenom.trim()}>
           {adding ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>{t('add')}</Text>}
         </TouchableOpacity>
       </ModalWithKeyboard>
@@ -253,7 +245,7 @@ export default function ChildrenScreen({ navigation }) {
   );
 }
 
-function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onLongPressEnfant, onTogglePresence, theme, t }) {
+function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onSupprimerEnfant, onTogglePresence, theme, t }) {
   if (enfants.length === 0) return null;
   const presents = enfants.filter(e => presences[e.id] === true).length;
   const s = styles(theme);
@@ -278,14 +270,7 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
         const rapportStatus = rapportsDuJour[enfant.id];
         return (
           <View key={enfant.id} style={[s.enfantRow, index === 0 && s.enfantRowFirst]}>
-            {/* Toute la partie gauche — tap = rapport, long press = supprimer */}
-            <TouchableOpacity
-              style={s.enfantLeft}
-              onPress={() => onPressEnfant(enfant)}
-              onLongPress={() => onLongPressEnfant(enfant)}
-              delayLongPress={600}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={s.enfantLeft} onPress={() => onPressEnfant(enfant)} activeOpacity={0.7}>
               <Avatar enfant={enfant} size={40} />
               <View style={s.enfantInfo}>
                 <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom || ''}</Text>
@@ -293,35 +278,27 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
               </View>
             </TouchableOpacity>
 
-            {/* Badges et présence */}
             <View style={s.enfantRight}>
-              {rapportStatus === 'publie' && (
-                <View style={[s.badge, { backgroundColor: theme.successLight }]}>
-                  <Text style={[s.badgeText, { color: theme.success }]}>✓</Text>
-                </View>
-              )}
-              {rapportStatus === 'brouillon' && (
-                <View style={[s.badge, { backgroundColor: theme.primarySoft }]}>
-                  <Text style={[s.badgeText, { color: theme.primary }]}>✎</Text>
-                </View>
-              )}
+              {rapportStatus === 'publie' && <View style={[s.badge, { backgroundColor: theme.successLight }]}><Text style={[s.badgeText, { color: theme.success }]}>✓</Text></View>}
+              {rapportStatus === 'brouillon' && <View style={[s.badge, { backgroundColor: theme.primarySoft }]}><Text style={[s.badgeText, { color: theme.primary }]}>✎</Text></View>}
               <TouchableOpacity
-                style={[
-                  s.presenceBadge,
+                style={[s.presenceBadge,
                   isPresent === true && { backgroundColor: theme.successLight, borderColor: theme.success },
                   isPresent === false && { backgroundColor: theme.dangerLight, borderColor: theme.danger },
                   isPresent === undefined && { backgroundColor: theme.card, borderColor: theme.border },
                 ]}
                 onPress={() => onTogglePresence(enfant.id)}
               >
-                <Text style={[
-                  s.presenceBadgeText,
+                <Text style={[s.presenceBadgeText,
                   isPresent === true && { color: theme.success },
                   isPresent === false && { color: theme.danger },
                   isPresent === undefined && { color: theme.textSecondary },
                 ]}>
                   {isPresent === true ? '✓ Présent' : isPresent === false ? '✗ Absent' : '? Marquer'}
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.deleteBtn} onPress={() => onSupprimerEnfant(enfant)}>
+                <Text style={s.deleteBtnIcon}>🗑️</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -342,11 +319,10 @@ const styles = (theme) => StyleSheet.create({
   searchIcon: { fontSize: 14, marginRight: 8 },
   searchInput: { flex: 1, color: theme.text, fontSize: 14, padding: 0 },
   searchClear: { color: theme.textSecondary, fontSize: 14, paddingLeft: 8 },
-  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 8 },
+  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 14 },
   statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center' },
   statNum: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
   statLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
-  hint: { fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
   listContainer: { paddingHorizontal: 16, gap: 14 },
   sectionBlock: { backgroundColor: theme.card, borderRadius: 16, borderWidth: 1, borderColor: theme.border },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
@@ -366,6 +342,8 @@ const styles = (theme) => StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '600' },
   presenceBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   presenceBadgeText: { fontSize: 10, fontWeight: '700' },
+  deleteBtn: { padding: 8 },
+  deleteBtnIcon: { fontSize: 18 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: theme.textSecondary, fontSize: 15 },
