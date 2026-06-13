@@ -45,9 +45,7 @@ export default function PhotosScreen() {
       if (prof?.creche_id) {
         const { data: enf } = await supabase.from('enfants').select('*').eq('creche_id', prof.creche_id).order('prenom');
         setEnfants(enf || []);
-        if (enf && enf.length > 0) {
-          setSelectedEnfant(prev => enf.find(e => e.id === prev?.id) || enf[0]);
-        }
+        if (enf && enf.length > 0) setSelectedEnfant(prev => enf.find(e => e.id === prev?.id) || enf[0]);
       }
     } catch (e) { console.log(e); }
     setLoading(false);
@@ -102,7 +100,7 @@ export default function PhotosScreen() {
   }
 
   function supprimerPhoto(photo) {
-    Alert.alert('Supprimer', 'Supprimer cette photo ?', [
+    Alert.alert('🗑️ Supprimer', 'Supprimer cette photo ?', [
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('delete'), style: 'destructive',
@@ -152,6 +150,10 @@ export default function PhotosScreen() {
             ))}
           </ScrollView>
 
+          {photos.length > 0 && (
+            <Text style={s.hint}>💡 Appui long sur une photo pour la supprimer</Text>
+          )}
+
           <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}>
             {photos.length === 0 ? (
               <View style={s.empty}>
@@ -164,22 +166,19 @@ export default function PhotosScreen() {
             ) : (
               <View style={s.photosGrid}>
                 {photos.map(photo => (
-                  <View key={photo.id} style={s.photoContainer}>
+                  <TouchableOpacity
+                    key={photo.id}
+                    style={s.photoContainer}
+                    onPress={() => setAsAvatar(photo)}
+                    onLongPress={() => supprimerPhoto(photo)}
+                    delayLongPress={600}
+                    activeOpacity={0.85}
+                  >
                     <Image source={{ uri: photo.url }} style={s.photo} />
-                    <View style={s.photoActions}>
-                      <TouchableOpacity style={s.avatarBtn} onPress={() => setAsAvatar(photo)}>
-                        <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
-                      </TouchableOpacity>
-                      {/* Poubelle — onTouchEnd pour iOS Safari */}
-                      <TouchableOpacity
-  onPress={() => onSupprimerEnfant(enfant)}
-  accessibilityRole="button"
-  style={s.deleteBtn}
->
-  <Text style={s.deleteBtnIcon}>🗑️</Text>
-</TouchableOpacity>
+                    <View style={s.photoLabel}>
+                      <Text style={s.photoLabelText}>Tap = Avatar · Long = Supprimer</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
@@ -215,11 +214,12 @@ const styles = (theme) => StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
   uploadBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
   uploadBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  enfantSelector: { paddingHorizontal: 16, marginBottom: 16, maxHeight: 80 },
+  enfantSelector: { paddingHorizontal: 16, marginBottom: 8, maxHeight: 80 },
   enfantChip: { alignItems: 'center', marginRight: 16, opacity: 0.5 },
   enfantChipActive: { opacity: 1 },
   enfantChipText: { color: theme.textSecondary, fontSize: 12, marginTop: 4 },
   enfantChipTextActive: { color: theme.primary, fontWeight: '600' },
+  hint: { fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginBottom: 8, fontStyle: 'italic' },
   empty: { alignItems: 'center', marginTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15, marginBottom: 16 },
@@ -228,11 +228,8 @@ const styles = (theme) => StyleSheet.create({
   photosGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8, gap: 8 },
   photoContainer: { width: '47%', marginBottom: 8 },
   photo: { width: '100%', height: 160, borderRadius: 12 },
-  photoActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 6 },
-  avatarBtn: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  avatarBtnText: { color: theme.primary, fontSize: 12, fontWeight: '600' },
-  deletePhotoBtn: { padding: 12, cursor: 'pointer' },
-  deletePhotoBtnText: { fontSize: 20 },
+  photoLabel: { paddingVertical: 4, alignItems: 'center' },
+  photoLabelText: { fontSize: 9, color: theme.textSecondary, fontStyle: 'italic' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: theme.text, marginBottom: 20, textAlign: 'center' },

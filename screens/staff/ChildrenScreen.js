@@ -35,21 +35,17 @@ export default function ChildrenScreen({ navigation }) {
       const { data: prof } = await supabase
         .from('profiles').select('*').eq('id', user.id).single();
       setProfile(prof);
-
       if (prof?.creche_id) {
         const { data: enf } = await supabase
           .from('enfants').select('*').eq('creche_id', prof.creche_id).order('prenom');
         setEnfants(enf || []);
-
         const today = new Date().toISOString().split('T')[0];
-
         const { data: presData } = await supabase
           .from('presences_journalieres').select('*').eq('date', today)
           .in('enfant_id', (enf || []).map(e => e.id));
         const presMap = {};
         (presData || []).forEach(p => { presMap[p.enfant_id] = p.present; });
         setPresences(presMap);
-
         const { data: rapData } = await supabase
           .from('rapports').select('enfant_id, brouillon').eq('date', today)
           .in('enfant_id', (enf || []).map(e => e.id));
@@ -116,20 +112,24 @@ export default function ChildrenScreen({ navigation }) {
   }
 
   function supprimerEnfant(enfant) {
-    Alert.alert(t('delete'), `Supprimer ${enfant.prenom} ?`, [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'), style: 'destructive',
-        onPress: async () => {
-          await supabase.from('rapports').delete().eq('enfant_id', enfant.id);
-          await supabase.from('enfants_parents').delete().eq('enfant_id', enfant.id);
-          await supabase.from('photos_enfants').delete().eq('enfant_id', enfant.id);
-          await supabase.from('presences_journalieres').delete().eq('enfant_id', enfant.id);
-          await supabase.from('enfants').delete().eq('id', enfant.id);
-          setEnfants(prev => prev.filter(e => e.id !== enfant.id));
+    Alert.alert(
+      '🗑️ Supprimer',
+      `Supprimer ${enfant.prenom} et tous ses rapports ?`,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('delete'), style: 'destructive',
+          onPress: async () => {
+            await supabase.from('rapports').delete().eq('enfant_id', enfant.id);
+            await supabase.from('enfants_parents').delete().eq('enfant_id', enfant.id);
+            await supabase.from('photos_enfants').delete().eq('enfant_id', enfant.id);
+            await supabase.from('presences_journalieres').delete().eq('enfant_id', enfant.id);
+            await supabase.from('enfants').delete().eq('id', enfant.id);
+            setEnfants(prev => prev.filter(e => e.id !== enfant.id));
+          }
         }
-      }
-    ]);
+      ]
+    );
   }
 
   async function copierCode(code) {
@@ -160,10 +160,8 @@ export default function ChildrenScreen({ navigation }) {
 
       <View style={s.searchBar}>
         <Text style={s.searchIcon}>🔍</Text>
-        <TextInput
-          style={s.searchInput} placeholder={t('searchChild')}
-          placeholderTextColor={theme.placeholder} value={search} onChangeText={setSearch}
-        />
+        <TextInput style={s.searchInput} placeholder={t('searchChild')}
+          placeholderTextColor={theme.placeholder} value={search} onChangeText={setSearch} />
         {search.length > 0 && <TouchableOpacity onPress={() => setSearch('')}><Text style={s.searchClear}>✕</Text></TouchableOpacity>}
       </View>
 
@@ -182,6 +180,8 @@ export default function ChildrenScreen({ navigation }) {
         </View>
       </View>
 
+      <Text style={s.hint}>💡 Appui long sur un enfant pour le supprimer</Text>
+
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
         showsVerticalScrollIndicator={false}
@@ -198,16 +198,18 @@ export default function ChildrenScreen({ navigation }) {
               enfants={petiteSection} couleurPill={theme.petiteSection} couleurPillText={theme.petiteSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onTogglePresence={togglePresence} onSupprimerEnfant={supprimerEnfant}
-              onCopierCode={copierCode} theme={theme} t={t}
+              onLongPressEnfant={supprimerEnfant}
+              onTogglePresence={togglePresence}
+              theme={theme} t={t}
             />
             <SectionBlock
               titre={t('grandeSection')} sousTitre="18–36 mois"
               enfants={grandeSection} couleurPill={theme.grandeSection} couleurPillText={theme.grandeSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onTogglePresence={togglePresence} onSupprimerEnfant={supprimerEnfant}
-              onCopierCode={copierCode} theme={theme} t={t}
+              onLongPressEnfant={supprimerEnfant}
+              onTogglePresence={togglePresence}
+              theme={theme} t={t}
             />
           </View>
         )}
@@ -251,7 +253,7 @@ export default function ChildrenScreen({ navigation }) {
   );
 }
 
-function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onTogglePresence, onSupprimerEnfant, onCopierCode, theme, t }) {
+function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onLongPressEnfant, onTogglePresence, theme, t }) {
   if (enfants.length === 0) return null;
   const presents = enfants.filter(e => presences[e.id] === true).length;
   const s = styles(theme);
@@ -274,12 +276,16 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
       {enfants.map((enfant, index) => {
         const isPresent = presences[enfant.id];
         const rapportStatus = rapportsDuJour[enfant.id];
-
         return (
           <View key={enfant.id} style={[s.enfantRow, index === 0 && s.enfantRowFirst]}>
-
-            {/* Gauche — ouvre rapport */}
-            <TouchableOpacity style={s.enfantLeft} onPress={() => onPressEnfant(enfant)} activeOpacity={0.7}>
+            {/* Toute la partie gauche — tap = rapport, long press = supprimer */}
+            <TouchableOpacity
+              style={s.enfantLeft}
+              onPress={() => onPressEnfant(enfant)}
+              onLongPress={() => onLongPressEnfant(enfant)}
+              delayLongPress={600}
+              activeOpacity={0.7}
+            >
               <Avatar enfant={enfant} size={40} />
               <View style={s.enfantInfo}>
                 <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom || ''}</Text>
@@ -287,7 +293,7 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
               </View>
             </TouchableOpacity>
 
-            {/* Droite — badges + présence + poubelle */}
+            {/* Badges et présence */}
             <View style={s.enfantRight}>
               {rapportStatus === 'publie' && (
                 <View style={[s.badge, { backgroundColor: theme.successLight }]}>
@@ -299,7 +305,6 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
                   <Text style={[s.badgeText, { color: theme.primary }]}>✎</Text>
                 </View>
               )}
-
               <TouchableOpacity
                 style={[
                   s.presenceBadge,
@@ -318,15 +323,6 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
                   {isPresent === true ? '✓ Présent' : isPresent === false ? '✗ Absent' : '? Marquer'}
                 </Text>
               </TouchableOpacity>
-
-              {/* Poubelle — onTouchEnd pour iOS Safari */}
-              <TouchableOpacity
-  onPress={() => onSupprimerEnfant(enfant)}
-  accessibilityRole="button"
-  style={s.deleteBtn}
->
-  <Text style={s.deleteBtnIcon}>🗑️</Text>
-</TouchableOpacity>
             </View>
           </View>
         );
@@ -346,10 +342,11 @@ const styles = (theme) => StyleSheet.create({
   searchIcon: { fontSize: 14, marginRight: 8 },
   searchInput: { flex: 1, color: theme.text, fontSize: 14, padding: 0 },
   searchClear: { color: theme.textSecondary, fontSize: 14, paddingLeft: 8 },
-  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 14 },
+  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 8 },
   statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center' },
   statNum: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
   statLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  hint: { fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
   listContainer: { paddingHorizontal: 16, gap: 14 },
   sectionBlock: { backgroundColor: theme.card, borderRadius: 16, borderWidth: 1, borderColor: theme.border },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
@@ -369,8 +366,6 @@ const styles = (theme) => StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '600' },
   presenceBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   presenceBadgeText: { fontSize: 10, fontWeight: '700' },
-  deleteBtn: { padding: 12, cursor: 'pointer' },
-  deleteBtnIcon: { fontSize: 18 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: theme.textSecondary, fontSize: 15 },

@@ -79,7 +79,7 @@ export default function AgendaScreen() {
   }
 
   function supprimerEvent(event) {
-    Alert.alert('Supprimer', `Supprimer "${event.titre}" ?`, [
+    Alert.alert('🗑️ Supprimer', `Supprimer "${event.titre}" ?`, [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer', style: 'destructive',
@@ -107,6 +107,10 @@ export default function AgendaScreen() {
         )}
       </View>
 
+      {isDirectrice && events.length > 0 && (
+        <Text style={s.hint}>💡 Appui long sur un événement pour le supprimer</Text>
+      )}
+
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
         showsVerticalScrollIndicator={false}
@@ -122,7 +126,13 @@ export default function AgendaScreen() {
             {events.map(event => {
               const d = formatDate(event.date);
               return (
-                <View key={event.id} style={s.eventCard}>
+                <TouchableOpacity
+                  key={event.id}
+                  style={s.eventCard}
+                  onLongPress={() => isDirectrice && supprimerEvent(event)}
+                  delayLongPress={600}
+                  activeOpacity={0.8}
+                >
                   <View style={s.eventLeft}>
                     <View style={s.eventDateBox}>
                       <Text style={s.eventDay}>{d ? d.toLocaleDateString('fr-FR', { day: '2-digit' }) : '?'}</Text>
@@ -138,16 +148,7 @@ export default function AgendaScreen() {
                     )}
                     {event.description && <Text style={s.eventDesc}>{event.description}</Text>}
                   </View>
-                  {isDirectrice && (
-                    <TouchableOpacity
-  onPress={() => onSupprimerEnfant(enfant)}
-  accessibilityRole="button"
-  style={s.deleteBtn}
->
-  <Text style={s.deleteBtnIcon}>🗑️</Text>
-</TouchableOpacity>
-                  )}
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -196,6 +197,7 @@ const styles = (theme) => StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
   addBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  hint: { fontSize: 11, color: theme.textSecondary, textAlign: 'center', marginBottom: 8, fontStyle: 'italic' },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15, marginBottom: 8 },
@@ -211,8 +213,6 @@ const styles = (theme) => StyleSheet.create({
   eventTypeBadge: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 4 },
   eventTypeText: { color: theme.primary, fontSize: 11, fontWeight: '600' },
   eventDesc: { color: theme.textSecondary, fontSize: 13 },
-  deleteBtn: { padding: 12, cursor: 'pointer' },
-  deleteIcon: { fontSize: 20 },
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: { backgroundColor: theme.inputBg, borderRadius: 12, borderWidth: 1, borderColor: theme.inputBorder, color: theme.text, fontSize: 15, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
   typeChip: { borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.card, marginRight: 8 },
