@@ -44,19 +44,15 @@ export default function ChildrenScreen({ navigation }) {
         const today = new Date().toISOString().split('T')[0];
 
         const { data: presData } = await supabase
-          .from('presences_journalieres')
-          .select('*').eq('date', today)
+          .from('presences_journalieres').select('*').eq('date', today)
           .in('enfant_id', (enf || []).map(e => e.id));
-
         const presMap = {};
         (presData || []).forEach(p => { presMap[p.enfant_id] = p.present; });
         setPresences(presMap);
 
         const { data: rapData } = await supabase
-          .from('rapports')
-          .select('enfant_id, brouillon').eq('date', today)
+          .from('rapports').select('enfant_id, brouillon').eq('date', today)
           .in('enfant_id', (enf || []).map(e => e.id));
-
         const rapMap = {};
         (rapData || []).forEach(r => { rapMap[r.enfant_id] = r.brouillon ? 'brouillon' : 'publie'; });
         setRapportsDuJour(rapMap);
@@ -97,24 +93,20 @@ export default function ChildrenScreen({ navigation }) {
   }
 
   async function ajouterEnfant() {
-    if (!prenom.trim()) {
-      Alert.alert(t('error'), 'Le prénom est obligatoire');
-      return;
-    }
+    if (!prenom.trim()) { Alert.alert(t('error'), 'Le prénom est obligatoire'); return; }
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: prof } = await supabase
-        .from('profiles').select('creche_id').eq('id', user.id).single();
+      const { data: prof } = await supabase.from('profiles').select('creche_id').eq('id', user.id).single();
       const codeEnfant = Math.random().toString(36).substring(2, 8).toUpperCase();
       const dateNorm = normaliserDate(dateNaissance);
       const { error } = await supabase.from('enfants').insert({
         prenom: prenom.trim(), nom: '', date_naissance: dateNorm,
-        creche_id: prof.creche_id, code_enfant: codeEnfant, section: section,
+        creche_id: prof.creche_id, code_enfant: codeEnfant, section,
       }).select().single();
       if (error) { Alert.alert(t('error'), error.message); setAdding(false); return; }
-      Alert.alert('✅ Enfant ajouté !', `Code enfant :\n\n${codeEnfant}`, [
-        { text: '📋 Copier', onPress: async () => { await Clipboard.setStringAsync(codeEnfant); } },
+      Alert.alert('✅ Enfant ajouté !', `Code : ${codeEnfant}`, [
+        { text: '📋 Copier', onPress: async () => await Clipboard.setStringAsync(codeEnfant) },
         { text: 'OK' }
       ]);
       setModalAdd(false);
@@ -123,8 +115,8 @@ export default function ChildrenScreen({ navigation }) {
     setAdding(false);
   }
 
-  async function supprimerEnfant(enfant) {
-    Alert.alert(t('delete'), `Supprimer ${enfant.prenom} et tous ses rapports ?`, [
+  function supprimerEnfant(enfant) {
+    Alert.alert(t('delete'), `Supprimer ${enfant.prenom} ?`, [
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('delete'), style: 'destructive',
@@ -142,7 +134,7 @@ export default function ChildrenScreen({ navigation }) {
 
   async function copierCode(code) {
     await Clipboard.setStringAsync(code);
-    Alert.alert('✅ Copié !', `Code copié :\n\n${code}`);
+    Alert.alert('✅ Copié !', code);
   }
 
   const enfantsFiltres = enfants.filter(e =>
@@ -155,9 +147,7 @@ export default function ChildrenScreen({ navigation }) {
   const totalARapporter = enfants.filter(e => !rapportsDuJour[e.id]).length;
   const s = styles(theme);
 
-  if (loading) return (
-    <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>
-  );
+  if (loading) return <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>;
 
   return (
     <View style={s.container}>
@@ -171,17 +161,10 @@ export default function ChildrenScreen({ navigation }) {
       <View style={s.searchBar}>
         <Text style={s.searchIcon}>🔍</Text>
         <TextInput
-          style={s.searchInput}
-          placeholder={t('searchChild')}
-          placeholderTextColor={theme.placeholder}
-          value={search}
-          onChangeText={setSearch}
+          style={s.searchInput} placeholder={t('searchChild')}
+          placeholderTextColor={theme.placeholder} value={search} onChangeText={setSearch}
         />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={s.searchClear}>✕</Text>
-          </TouchableOpacity>
-        )}
+        {search.length > 0 && <TouchableOpacity onPress={() => setSearch('')}><Text style={s.searchClear}>✕</Text></TouchableOpacity>}
       </View>
 
       <View style={s.statsRow}>
@@ -212,25 +195,19 @@ export default function ChildrenScreen({ navigation }) {
           <View style={s.listContainer}>
             <SectionBlock
               titre={t('petiteSection')} sousTitre="0–18 mois"
-              enfants={petiteSection}
-              couleurPill={theme.petiteSection} couleurPillText={theme.petiteSectionText}
+              enfants={petiteSection} couleurPill={theme.petiteSection} couleurPillText={theme.petiteSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onTogglePresence={togglePresence}
-              onSupprimerEnfant={supprimerEnfant}
-              onCopierCode={copierCode}
-              theme={theme} t={t}
+              onTogglePresence={togglePresence} onSupprimerEnfant={supprimerEnfant}
+              onCopierCode={copierCode} theme={theme} t={t}
             />
             <SectionBlock
               titre={t('grandeSection')} sousTitre="18–36 mois"
-              enfants={grandeSection}
-              couleurPill={theme.grandeSection} couleurPillText={theme.grandeSectionText}
+              enfants={grandeSection} couleurPill={theme.grandeSection} couleurPillText={theme.grandeSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onTogglePresence={togglePresence}
-              onSupprimerEnfant={supprimerEnfant}
-              onCopierCode={copierCode}
-              theme={theme} t={t}
+              onTogglePresence={togglePresence} onSupprimerEnfant={supprimerEnfant}
+              onCopierCode={copierCode} theme={theme} t={t}
             />
           </View>
         )}
@@ -243,46 +220,29 @@ export default function ChildrenScreen({ navigation }) {
         title={t('addChildTitle')}
       >
         <Text style={s.inputLabel}>{t('firstName')} *</Text>
-        <TextInput
-          style={s.input}
-          placeholder={t('firstName')}
-          placeholderTextColor={theme.placeholder}
-          value={prenom}
-          onChangeText={setPrenom}
-          autoFocus
-        />
+        <TextInput style={s.input} placeholder={t('firstName')} placeholderTextColor={theme.placeholder}
+          value={prenom} onChangeText={setPrenom} autoFocus />
         <Text style={s.inputLabel}>Date de naissance (optionnel)</Text>
-        <TextInput
-          style={s.input}
-          placeholder="Ex: 15-03-2024"
-          placeholderTextColor={theme.placeholder}
-          value={dateNaissance}
-          onChangeText={setDateNaissance}
-          keyboardType="numbers-and-punctuation"
-        />
+        <TextInput style={s.input} placeholder="Ex: 15-03-2024" placeholderTextColor={theme.placeholder}
+          value={dateNaissance} onChangeText={setDateNaissance} keyboardType="numbers-and-punctuation" />
         <Text style={s.inputLabel}>Section</Text>
         <View style={s.sectionToggle}>
           <TouchableOpacity
             style={[s.sectionToggleBtn, section === 'petite' && { backgroundColor: theme.petiteSection, borderColor: theme.petiteSectionText }]}
             onPress={() => setSection('petite')}
           >
-            <Text style={[s.sectionToggleBtnText, section === 'petite' && { color: theme.petiteSectionText, fontWeight: '700' }]}>
-              👶 {t('petiteSection')}
-            </Text>
+            <Text style={[s.sectionToggleBtnText, section === 'petite' && { color: theme.petiteSectionText, fontWeight: '700' }]}>👶 {t('petiteSection')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.sectionToggleBtn, section === 'grande' && { backgroundColor: theme.grandeSection, borderColor: theme.grandeSectionText }]}
             onPress={() => setSection('grande')}
           >
-            <Text style={[s.sectionToggleBtnText, section === 'grande' && { color: theme.grandeSectionText, fontWeight: '700' }]}>
-              🧒 {t('grandeSection')}
-            </Text>
+            <Text style={[s.sectionToggleBtnText, section === 'grande' && { color: theme.grandeSectionText, fontWeight: '700' }]}>🧒 {t('grandeSection')}</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity
           style={[s.modalBtn, !prenom.trim() && s.modalBtnDisabled]}
-          onPress={ajouterEnfant}
-          disabled={adding || !prenom.trim()}
+          onPress={ajouterEnfant} disabled={adding || !prenom.trim()}
         >
           {adding ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>{t('add')}</Text>}
         </TouchableOpacity>
@@ -318,12 +278,8 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
         return (
           <View key={enfant.id} style={[s.enfantRow, index === 0 && s.enfantRowFirst]}>
 
-            {/* Partie gauche — cliquable pour ouvrir rapport */}
-            <TouchableOpacity
-              style={s.enfantLeft}
-              onPress={() => onPressEnfant(enfant)}
-              activeOpacity={0.7}
-            >
+            {/* Gauche — ouvre rapport */}
+            <TouchableOpacity style={s.enfantLeft} onPress={() => onPressEnfant(enfant)} activeOpacity={0.7}>
               <Avatar enfant={enfant} size={40} />
               <View style={s.enfantInfo}>
                 <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom || ''}</Text>
@@ -331,21 +287,19 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
               </View>
             </TouchableOpacity>
 
-            {/* Partie droite — badges + poubelle COMPLETEMENT séparés */}
+            {/* Droite — badges + présence + poubelle */}
             <View style={s.enfantRight}>
-              {/* Badge rapport */}
               {rapportStatus === 'publie' && (
                 <View style={[s.badge, { backgroundColor: theme.successLight }]}>
-                  <Text style={[s.badgeText, { color: theme.success }]}>✓ Rapport</Text>
+                  <Text style={[s.badgeText, { color: theme.success }]}>✓</Text>
                 </View>
               )}
               {rapportStatus === 'brouillon' && (
                 <View style={[s.badge, { backgroundColor: theme.primarySoft }]}>
-                  <Text style={[s.badgeText, { color: theme.primary }]}>✎ Brouillon</Text>
+                  <Text style={[s.badgeText, { color: theme.primary }]}>✎</Text>
                 </View>
               )}
 
-              {/* Présence */}
               <TouchableOpacity
                 style={[
                   s.presenceBadge,
@@ -365,14 +319,14 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
                 </Text>
               </TouchableOpacity>
 
-              {/* Poubelle — TouchableOpacity DIRECT, pas imbriqué */}
-              <TouchableOpacity
-                onPress={() => onSupprimerEnfant(enfant)}
+              {/* Poubelle — onTouchEnd pour iOS Safari */}
+              <View
                 style={s.deleteBtn}
-                activeOpacity={0.6}
+                onTouchEnd={(e) => { e.stopPropagation(); onSupprimerEnfant(enfant); }}
+                onClick={() => onSupprimerEnfant(enfant)}
               >
                 <Text style={s.deleteBtnIcon}>🗑️</Text>
-              </TouchableOpacity>
+              </View>
             </View>
           </View>
         );
@@ -384,19 +338,11 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
 const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12,
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
   addBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: theme.card, borderRadius: 10, borderWidth: 1,
-    borderColor: theme.border, marginHorizontal: 16, marginBottom: 12,
-    paddingHorizontal: 12, paddingVertical: 10,
-  },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.card, borderRadius: 10, borderWidth: 1, borderColor: theme.border, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 12, paddingVertical: 10 },
   searchIcon: { fontSize: 14, marginRight: 8 },
   searchInput: { flex: 1, color: theme.text, fontSize: 14, padding: 0 },
   searchClear: { color: theme.textSecondary, fontSize: 14, paddingLeft: 8 },
@@ -405,60 +351,33 @@ const styles = (theme) => StyleSheet.create({
   statNum: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
   statLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
   listContainer: { paddingHorizontal: 16, gap: 14 },
-  sectionBlock: {
-    backgroundColor: theme.card, borderRadius: 16,
-    borderWidth: 1, borderColor: theme.border,
-    // PAS de overflow: 'hidden' — c'était ça qui bloquait iOS !
-  },
-  sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 10,
-  },
+  sectionBlock: { backgroundColor: theme.card, borderRadius: 16, borderWidth: 1, borderColor: theme.border },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
   sectionPillText: { fontSize: 11, fontWeight: '700' },
   sectionTitre: { fontSize: 14, fontWeight: '700', color: theme.text },
   sectionCount: { fontSize: 13 },
-  enfantRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderTopWidth: 1, borderTopColor: theme.border,
-  },
+  enfantRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: theme.border },
   enfantRowFirst: { borderTopWidth: 1, borderTopColor: theme.border },
-  // Partie gauche cliquable
-  enfantLeft: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
-  },
+  enfantLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   enfantInfo: { flex: 1, minWidth: 0 },
   enfantNom: { fontSize: 14, fontWeight: '600', color: theme.text },
   enfantCode: { fontSize: 11, color: theme.primary, marginTop: 2 },
-  // Partie droite indépendante
-  enfantRight: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0,
-  },
+  enfantRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 10, fontWeight: '600' },
   presenceBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   presenceBadgeText: { fontSize: 10, fontWeight: '700' },
-  deleteBtn: {
-    paddingHorizontal: 10, paddingVertical: 8,
-    marginLeft: 2,
-  },
+  deleteBtn: { padding: 12, cursor: 'pointer' },
   deleteBtnIcon: { fontSize: 18 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: theme.textSecondary, fontSize: 15 },
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  input: {
-    backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
-    borderColor: theme.inputBorder, color: theme.text, fontSize: 15,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
-  },
+  input: { backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1, borderColor: theme.inputBorder, color: theme.text, fontSize: 15, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
   sectionToggle: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  sectionToggleBtn: {
-    flex: 1, borderRadius: 10, borderWidth: 1, borderColor: theme.border,
-    backgroundColor: theme.card, paddingVertical: 12, alignItems: 'center',
-  },
+  sectionToggleBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.card, paddingVertical: 12, alignItems: 'center' },
   sectionToggleBtnText: { fontSize: 13, color: theme.textSecondary },
   modalBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   modalBtnDisabled: { backgroundColor: theme.border },

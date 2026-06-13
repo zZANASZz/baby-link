@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Image, Alert, Pressable,
+  TouchableOpacity, Image, Alert,
   ActivityIndicator, RefreshControl, Modal
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,10 +28,7 @@ export default function PhotosScreen() {
     if (!modalSource && pendingAction) {
       const action = pendingAction;
       setPendingAction(null);
-      setTimeout(() => {
-        if (action === 'camera') pickFromCamera();
-        else pickFromGallery();
-      }, 500);
+      setTimeout(() => { if (action === 'camera') pickFromCamera(); else pickFromGallery(); }, 500);
     }
   }, [modalSource, pendingAction]);
 
@@ -43,19 +40,13 @@ export default function PhotosScreen() {
   async function loadData() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: prof } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single();
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setProfile(prof);
-
       if (prof?.creche_id) {
-        const { data: enf } = await supabase
-          .from('enfants').select('*').eq('creche_id', prof.creche_id).order('prenom');
+        const { data: enf } = await supabase.from('enfants').select('*').eq('creche_id', prof.creche_id).order('prenom');
         setEnfants(enf || []);
         if (enf && enf.length > 0) {
-          setSelectedEnfant(prev => {
-            const updated = enf.find(e => e.id === prev?.id) || enf[0];
-            return updated;
-          });
+          setSelectedEnfant(prev => enf.find(e => e.id === prev?.id) || enf[0]);
         }
       }
     } catch (e) { console.log(e); }
@@ -65,25 +56,18 @@ export default function PhotosScreen() {
 
   async function loadPhotos(enfantId) {
     try {
-      const { data } = await supabase
-        .from('photos_enfants').select('*')
-        .eq('enfant_id', enfantId)
-        .order('created_at', { ascending: false });
+      const { data } = await supabase.from('photos_enfants').select('*')
+        .eq('enfant_id', enfantId).order('created_at', { ascending: false });
       setPhotos(data || []);
     } catch (e) { console.log(e); }
   }
 
-  useEffect(() => {
-    if (selectedEnfant) loadPhotos(selectedEnfant.id);
-  }, [selectedEnfant]);
+  useEffect(() => { if (selectedEnfant) loadPhotos(selectedEnfant.id); }, [selectedEnfant]);
 
   async function pickFromCamera() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission refusée', "Activez l'accès caméra dans les réglages.");
-        return;
-      }
+      if (status !== 'granted') { Alert.alert('Permission refusée', "Activez l'accès caméra."); return; }
       const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
       if (!result.canceled) await handleUpload(result.assets[0].uri);
     } catch (e) { Alert.alert('Erreur', e.message); }
@@ -92,13 +76,8 @@ export default function PhotosScreen() {
   async function pickFromGallery() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission refusée', "Activez l'accès aux photos dans les réglages.");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'], allowsEditing: true, quality: 0.7,
-      });
+      if (status !== 'granted') { Alert.alert('Permission refusée', "Activez l'accès aux photos."); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.7 });
       if (!result.canceled) await handleUpload(result.assets[0].uri);
     } catch (e) { Alert.alert('Erreur', e.message); }
   }
@@ -111,18 +90,11 @@ export default function PhotosScreen() {
       const response = await fetch(uri);
       const blob = await response.blob();
       const arrayBuffer = await new Response(blob).arrayBuffer();
-
-      const { error: uploadError } = await supabase.storage
-        .from('creche-photos').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
+      const { error: uploadError } = await supabase.storage.from('creche-photos').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
       if (uploadError) { Alert.alert('Erreur upload', uploadError.message); setUploading(false); return; }
-
       const { data: { publicUrl } } = supabase.storage.from('creche-photos').getPublicUrl(fileName);
-
-      const { error: dbError } = await supabase.from('photos_enfants').insert({
-        enfant_id: selectedEnfant.id, url: publicUrl, uploaded_by: user.id
-      });
+      const { error: dbError } = await supabase.from('photos_enfants').insert({ enfant_id: selectedEnfant.id, url: publicUrl, uploaded_by: user.id });
       if (dbError) { Alert.alert(t('error'), dbError.message); setUploading(false); return; }
-
       Alert.alert('✅ Photo ajoutée !');
       await loadPhotos(selectedEnfant.id);
     } catch (e) { Alert.alert(t('error'), e.message); }
@@ -153,52 +125,34 @@ export default function PhotosScreen() {
   }
 
   const s = styles(theme);
-
-  if (loading) return (
-    <View style={s.center}><Text style={s.loadingText}>{t('loading')}</Text></View>
-  );
+  if (loading) return <View style={s.center}><Text style={s.loadingText}>{t('loading')}</Text></View>;
 
   return (
     <View style={s.container}>
       <View style={s.header}>
         <Text style={s.title}>{t('photosTitle')}</Text>
-        <TouchableOpacity
-          style={s.uploadBtn}
-          onPress={() => setModalSource(true)}
-          disabled={uploading || !selectedEnfant}
-        >
-          {uploading
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={s.uploadBtnText}>{t('addPhoto')}</Text>
-          }
+        <TouchableOpacity style={s.uploadBtn} onPress={() => setModalSource(true)} disabled={uploading || !selectedEnfant}>
+          {uploading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.uploadBtnText}>{t('addPhoto')}</Text>}
         </TouchableOpacity>
       </View>
 
       {enfants.length === 0 ? (
-        <View style={s.empty}>
-          <Text style={s.emptyIcon}>📸</Text>
-          <Text style={s.emptyText}>Aucun enfant dans la crèche</Text>
-        </View>
+        <View style={s.empty}><Text style={s.emptyIcon}>📸</Text><Text style={s.emptyText}>Aucun enfant</Text></View>
       ) : (
         <>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.enfantSelector}>
             {enfants.map(enfant => (
-              <TouchableOpacity
-                key={enfant.id}
+              <TouchableOpacity key={enfant.id}
                 style={[s.enfantChip, selectedEnfant?.id === enfant.id && s.enfantChipActive]}
                 onPress={() => setSelectedEnfant(enfant)}
               >
                 <Avatar enfant={enfant} size={44} />
-                <Text style={[s.enfantChipText, selectedEnfant?.id === enfant.id && s.enfantChipTextActive]}>
-                  {enfant.prenom}
-                </Text>
+                <Text style={[s.enfantChipText, selectedEnfant?.id === enfant.id && s.enfantChipTextActive]}>{enfant.prenom}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          <ScrollView
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
-          >
+          <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}>
             {photos.length === 0 ? (
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>📸</Text>
@@ -213,16 +167,14 @@ export default function PhotosScreen() {
                   <View key={photo.id} style={s.photoContainer}>
                     <Image source={{ uri: photo.url }} style={s.photo} />
                     <View style={s.photoActions}>
-                      <Pressable
-                        style={({ pressed }) => [s.avatarBtn, pressed && { opacity: 0.6 }]}
-                        onPress={() => setAsAvatar(photo)}
-                      >
+                      <TouchableOpacity style={s.avatarBtn} onPress={() => setAsAvatar(photo)}>
                         <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
-                      </Pressable>
+                      </TouchableOpacity>
+                      {/* Poubelle — onTouchEnd pour iOS Safari */}
                       <View
                         style={s.deletePhotoBtn}
-                        onStartShouldSetResponder={() => true}
-                        onResponderGrant={() => supprimerPhoto(photo)}
+                        onTouchEnd={(e) => { e.stopPropagation(); supprimerPhoto(photo); }}
+                        onClick={() => supprimerPhoto(photo)}
                       >
                         <Text style={s.deletePhotoBtnText}>🗑️</Text>
                       </View>
@@ -235,25 +187,14 @@ export default function PhotosScreen() {
         </>
       )}
 
-      <Modal
-        visible={modalSource}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalSource(false)}
-      >
+      <Modal visible={modalSource} transparent animationType="slide" onRequestClose={() => setModalSource(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
             <Text style={s.modalTitle}>Ajouter une photo</Text>
-            <TouchableOpacity
-              style={s.sourceBtn}
-              onPress={() => { setPendingAction('camera'); setModalSource(false); }}
-            >
+            <TouchableOpacity style={s.sourceBtn} onPress={() => { setPendingAction('camera'); setModalSource(false); }}>
               <Text style={s.sourceBtnText}>{t('takePhoto')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={s.sourceBtn}
-              onPress={() => { setPendingAction('gallery'); setModalSource(false); }}
-            >
+            <TouchableOpacity style={s.sourceBtn} onPress={() => { setPendingAction('gallery'); setModalSource(false); }}>
               <Text style={s.sourceBtnText}>{t('choosePhoto')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setModalSource(false)}>
@@ -270,10 +211,7 @@ const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12,
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
   uploadBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
   uploadBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
@@ -293,13 +231,10 @@ const styles = (theme) => StyleSheet.create({
   photoActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 6 },
   avatarBtn: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   avatarBtnText: { color: theme.primary, fontSize: 12, fontWeight: '600' },
-  deletePhotoBtn: { padding: 10, zIndex: 999 },
+  deletePhotoBtn: { padding: 12, cursor: 'pointer' },
   deletePhotoBtnText: { fontSize: 20 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContent: {
-    backgroundColor: theme.card, borderTopLeftRadius: 24,
-    borderTopRightRadius: 24, padding: 24, paddingBottom: 40,
-  },
+  modalContent: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: theme.text, marginBottom: 20, textAlign: 'center' },
   sourceBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 },
   sourceBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
