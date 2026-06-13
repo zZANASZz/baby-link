@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Image, Alert,
+  TouchableOpacity, Image, Alert, Pressable,
   ActivityIndicator, RefreshControl, Modal
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,11 +20,10 @@ export default function PhotosScreen() {
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [modalSource, setModalSource] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null); // 'camera' ou 'gallery'
+  const [pendingAction, setPendingAction] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
-  // Ce useEffect se déclenche APRÈS que le modal est fermé
   useEffect(() => {
     if (!modalSource && pendingAction) {
       const action = pendingAction;
@@ -67,8 +66,7 @@ export default function PhotosScreen() {
   async function loadPhotos(enfantId) {
     try {
       const { data } = await supabase
-        .from('photos_enfants')
-        .select('*')
+        .from('photos_enfants').select('*')
         .eq('enfant_id', enfantId)
         .order('created_at', { ascending: false });
       setPhotos(data || []);
@@ -83,35 +81,26 @@ export default function PhotosScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Activez l\'accès caméra dans les réglages de votre téléphone.');
+        Alert.alert('Permission refusée', "Activez l'accès caméra dans les réglages.");
         return;
       }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        quality: 0.7,
-      });
+      const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
       if (!result.canceled) await handleUpload(result.assets[0].uri);
-    } catch (e) {
-      Alert.alert('Erreur', e.message);
-    }
+    } catch (e) { Alert.alert('Erreur', e.message); }
   }
 
   async function pickFromGallery() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Activez l\'accès aux photos dans les réglages de votre téléphone.');
+        Alert.alert('Permission refusée', "Activez l'accès aux photos dans les réglages.");
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.7,
+        mediaTypes: ['images'], allowsEditing: true, quality: 0.7,
       });
       if (!result.canceled) await handleUpload(result.assets[0].uri);
-    } catch (e) {
-      Alert.alert('Erreur', e.message);
-    }
+    } catch (e) { Alert.alert('Erreur', e.message); }
   }
 
   async function handleUpload(uri) {
@@ -119,26 +108,19 @@ export default function PhotosScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const fileName = `${selectedEnfant.id}/${Date.now()}.jpg`;
-
       const response = await fetch(uri);
       const blob = await response.blob();
       const arrayBuffer = await new Response(blob).arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
-        .from('creche-photos')
-        .upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
-
+        .from('creche-photos').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
       if (uploadError) { Alert.alert('Erreur upload', uploadError.message); setUploading(false); return; }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('creche-photos').getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from('creche-photos').getPublicUrl(fileName);
 
       const { error: dbError } = await supabase.from('photos_enfants').insert({
-        enfant_id: selectedEnfant.id,
-        url: publicUrl,
-        uploaded_by: user.id
+        enfant_id: selectedEnfant.id, url: publicUrl, uploaded_by: user.id
       });
-
       if (dbError) { Alert.alert(t('error'), dbError.message); setUploading(false); return; }
 
       Alert.alert('✅ Photo ajoutée !');
@@ -147,7 +129,7 @@ export default function PhotosScreen() {
     setUploading(false);
   }
 
-  async function supprimerPhoto(photo) {
+  function supprimerPhoto(photo) {
     Alert.alert('Supprimer', 'Supprimer cette photo ?', [
       { text: t('cancel'), style: 'cancel' },
       {
@@ -185,11 +167,10 @@ export default function PhotosScreen() {
           onPress={() => setModalSource(true)}
           disabled={uploading || !selectedEnfant}
         >
-          {uploading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={s.uploadBtnText}>{t('addPhoto')}</Text>
-          )}
+          {uploading
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={s.uploadBtnText}>{t('addPhoto')}</Text>
+          }
         </TouchableOpacity>
       </View>
 
@@ -232,12 +213,19 @@ export default function PhotosScreen() {
                   <View key={photo.id} style={s.photoContainer}>
                     <Image source={{ uri: photo.url }} style={s.photo} />
                     <View style={s.photoActions}>
-                      <TouchableOpacity style={s.avatarBtn} onPress={() => setAsAvatar(photo)}>
+                      <Pressable
+                        style={({ pressed }) => [s.avatarBtn, pressed && { opacity: 0.6 }]}
+                        onPress={() => setAsAvatar(photo)}
+                      >
                         <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={s.deletePhotoBtn} onPress={() => supprimerPhoto(photo)}>
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [s.deletePhotoBtn, pressed && { opacity: 0.5 }]}
+                        onPress={() => supprimerPhoto(photo)}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      >
                         <Text style={s.deletePhotoBtnText}>🗑️</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     </View>
                   </View>
                 ))}
@@ -284,14 +272,11 @@ const styles = (theme) => StyleSheet.create({
   loadingText: { color: theme.text },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', padding: 20, paddingTop: 60
+    alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12,
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.text },
-  uploadBtn: {
-    backgroundColor: theme.primary, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 8
-  },
-  uploadBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text },
+  uploadBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
+  uploadBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   enfantSelector: { paddingHorizontal: 16, marginBottom: 16, maxHeight: 80 },
   enfantChip: { alignItems: 'center', marginRight: 16, opacity: 0.5 },
   enfantChipActive: { opacity: 1 },
@@ -300,32 +285,23 @@ const styles = (theme) => StyleSheet.create({
   empty: { alignItems: 'center', marginTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15, marginBottom: 16 },
-  addPhotoBtn: {
-    backgroundColor: theme.primary, borderRadius: 20,
-    paddingHorizontal: 20, paddingVertical: 10
-  },
+  addPhotoBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
   addPhotoBtnText: { color: '#fff', fontWeight: '600' },
   photosGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8, gap: 8 },
   photoContainer: { width: '47%', marginBottom: 8 },
   photo: { width: '100%', height: 160, borderRadius: 12 },
-  photoActions: { flexDirection: 'row', justifyContent: 'space-between', padding: 6 },
-  avatarBtn: {
-    backgroundColor: theme.primaryLight, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 4
-  },
+  photoActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 6 },
+  avatarBtn: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   avatarBtnText: { color: theme.primary, fontSize: 12, fontWeight: '600' },
-  deletePhotoBtn: { padding: 4 },
-  deletePhotoBtnText: { fontSize: 16 },
+  deletePhotoBtn: { padding: 8 },
+  deletePhotoBtnText: { fontSize: 20 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: theme.card, borderTopLeftRadius: 24,
-    borderTopRightRadius: 24, padding: 24, paddingBottom: 40
+    borderTopRightRadius: 24, padding: 24, paddingBottom: 40,
   },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: theme.text, marginBottom: 20, textAlign: 'center' },
-  sourceBtn: {
-    backgroundColor: theme.primary, borderRadius: 12,
-    padding: 16, alignItems: 'center', marginBottom: 12
-  },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: theme.text, marginBottom: 20, textAlign: 'center' },
+  sourceBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 },
   sourceBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   cancelText: { textAlign: 'center', color: theme.textSecondary, marginTop: 8, fontSize: 14 },
 });

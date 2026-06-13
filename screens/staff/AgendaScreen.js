@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput,
+  TouchableOpacity, TextInput, Pressable,
   Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
@@ -9,6 +9,25 @@ import { supabase } from '../../lib/supabase';
 import ModalWithKeyboard from '../../components/ModalWithKeyboard';
 
 const EVENT_TYPES = ['Fermeture', 'Sortie', 'Vaccination', 'Fête', 'Réunion', 'Autre'];
+
+function normaliserDate(input) {
+  if (!input) return null;
+  if (input.includes('-') && input.split('-')[0].length === 4) return input;
+  const sep = input.includes('/') ? '/' : '-';
+  const parts = input.split(sep);
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  return input;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T12:00:00');
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
 
 export default function AgendaScreen() {
   const { theme } = useTheme();
@@ -34,8 +53,7 @@ export default function AgendaScreen() {
 
       if (prof?.creche_id) {
         const { data: evts } = await supabase
-          .from('nursery_events')
-          .select('*')
+          .from('nursery_events').select('*')
           .eq('creche_id', prof.creche_id)
           .order('date', { ascending: true });
         setEvents(evts || []);
@@ -56,12 +74,14 @@ export default function AgendaScreen() {
       const { data: prof } = await supabase
         .from('profiles').select('creche_id').eq('id', user.id).single();
 
+      const dateNorm = normaliserDate(date.trim());
+
       const { data: newEvent, error } = await supabase
         .from('nursery_events').insert({
           creche_id: prof.creche_id,
           titre: titre.trim(),
           type: type || 'Autre',
-          date: date.trim(),
+          date: dateNorm,
           description: description.trim() || null
         }).select().single();
 
@@ -74,7 +94,7 @@ export default function AgendaScreen() {
     setAdding(false);
   }
 
-  async function supprimerEvent(event) {
+  function supprimerEvent(event) {
     Alert.alert(
       'Supprimer',
       `Supprimer l'événement "${event.titre}" ?`,
@@ -113,6 +133,7 @@ export default function AgendaScreen() {
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        showsVerticalScrollIndicator={false}
       >
         {events.length === 0 ? (
           <View style={s.empty}>
@@ -124,38 +145,46 @@ export default function AgendaScreen() {
           </View>
         ) : (
           <View style={s.list}>
-            {events.map(event => (
-              <View key={event.id} style={s.eventCard}>
-                <View style={s.eventLeft}>
-                  <View style={s.eventDateBox}>
-                    <Text style={s.eventDay}>
-                      {new Date(event.date).toLocaleDateString('fr-FR', { day: '2-digit' })}
-                    </Text>
-                    <Text style={s.eventMonth}>
-                      {new Date(event.date).toLocaleDateString('fr-FR', { month: 'short' })}
-                    </Text>
-                  </View>
-                </View>
-                <View style={s.eventRight}>
-                  <Text style={s.eventTitre}>{event.titre}</Text>
-                  {event.type && (
-                    <View style={s.eventTypeBadge}>
-                      <Text style={s.eventTypeText}>{event.type}</Text>
+            {events.map(event => {
+              const d = formatDate(event.date);
+              return (
+                <View key={event.id} style={s.eventCard}>
+                  <View style={s.eventLeft}>
+                    <View style={s.eventDateBox}>
+                      <Text style={s.eventDay}>
+                        {d ? d.toLocaleDateString('fr-FR', { day: '2-digit' }) : '?'}
+                      </Text>
+                      <Text style={s.eventMonth}>
+                        {d ? d.toLocaleDateString('fr-FR', { month: 'short' }) : '?'}
+                      </Text>
                     </View>
-                  )}
-                  {event.description && (
-                    <Text style={s.eventDesc}>{event.description}</Text>
+                  </View>
+                  <View style={s.eventRight}>
+                    <Text style={s.eventTitre}>{event.titre}</Text>
+                    {event.type && (
+                      <View style={s.eventTypeBadge}>
+                        <Text style={s.eventTypeText}>{event.type}</Text>
+                      </View>
+                    )}
+                    {event.description && (
+                      <Text style={s.eventDesc}>{event.description}</Text>
+                    )}
+                  </View>
+                  {isDirectrice && (
+                    <Pressable
+                      onPress={() => supprimerEvent(event)}
+                      style={({ pressed }) => [s.deleteBtn, pressed && { opacity: 0.5 }]}
+                      hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    >
+                      <Text style={s.deleteIcon}>🗑️</Text>
+                    </Pressable>
                   )}
                 </View>
-                {isDirectrice && (
-                  <TouchableOpacity onPress={() => supprimerEvent(event)}>
-                    <Text style={s.deleteIcon}>🗑️</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
+        <View style={{ height: 30 }} />
       </ScrollView>
 
       <ModalWithKeyboard
@@ -175,24 +204,25 @@ export default function AgendaScreen() {
 
         <Text style={s.inputLabel}>Type</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-          {EVENT_TYPES.map(t => (
+          {EVENT_TYPES.map(tp => (
             <TouchableOpacity
-              key={t}
-              style={[s.typeChip, type === t && s.typeChipActive]}
-              onPress={() => setType(t)}
+              key={tp}
+              style={[s.typeChip, type === tp && s.typeChipActive]}
+              onPress={() => setType(tp)}
             >
-              <Text style={[s.typeChipText, type === t && s.typeChipTextActive]}>{t}</Text>
+              <Text style={[s.typeChipText, type === tp && s.typeChipTextActive]}>{tp}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        <Text style={s.inputLabel}>Date</Text>
+        <Text style={s.inputLabel}>Date (jj-mm-aaaa)</Text>
         <TextInput
           style={s.input}
-          placeholder="jj-mm-aaaa"
+          placeholder="Ex: 25-12-2026"
           placeholderTextColor={theme.placeholder}
           value={date}
           onChangeText={setDate}
+          keyboardType="numbers-and-punctuation"
         />
 
         <Text style={s.inputLabel}>Description (optionnel)</Text>
@@ -227,58 +257,56 @@ const styles = (theme) => StyleSheet.create({
   loadingText: { color: theme.text },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', padding: 20, paddingTop: 60
+    alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12,
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.text },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text },
   addBtn: {
-    backgroundColor: theme.primary, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 8
+    backgroundColor: theme.primary, borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 9,
   },
-  addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16, opacity: 0.3 },
   emptyText: { color: theme.textSecondary, fontSize: 15, marginBottom: 8 },
   emptySubtext: { color: theme.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 32 },
   list: { padding: 16 },
   eventCard: {
-    flexDirection: 'row', alignItems: 'flex-start',
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: theme.card, borderRadius: 16, padding: 16,
-    marginBottom: 10, borderWidth: 1, borderColor: theme.border
+    marginBottom: 10, borderWidth: 1, borderColor: theme.border,
   },
   eventLeft: { marginRight: 14 },
   eventDateBox: {
     backgroundColor: theme.primaryLight, borderRadius: 10,
-    padding: 8, alignItems: 'center', minWidth: 44
+    padding: 8, alignItems: 'center', minWidth: 44,
   },
-  eventDay: { color: theme.primary, fontSize: 18, fontWeight: 'bold' },
+  eventDay: { color: theme.primary, fontSize: 18, fontWeight: '700' },
   eventMonth: { color: theme.primary, fontSize: 11, textTransform: 'uppercase' },
   eventRight: { flex: 1 },
   eventTitre: { color: theme.text, fontSize: 15, fontWeight: '600', marginBottom: 4 },
   eventTypeBadge: {
     backgroundColor: theme.primaryLight, borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 4
+    paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 4,
   },
   eventTypeText: { color: theme.primary, fontSize: 11, fontWeight: '600' },
   eventDesc: { color: theme.textSecondary, fontSize: 13 },
-  deleteIcon: { fontSize: 18, padding: 4 },
+  deleteBtn: { padding: 8 },
+  deleteIcon: { fontSize: 20 },
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: {
     backgroundColor: theme.inputBg, borderRadius: 12, borderWidth: 1,
     borderColor: theme.inputBorder, color: theme.text, fontSize: 15,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   typeChip: {
     borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
     borderWidth: 1, borderColor: theme.border,
-    backgroundColor: theme.card, marginRight: 8
+    backgroundColor: theme.card, marginRight: 8,
   },
   typeChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
   typeChipText: { color: theme.textSecondary, fontSize: 13 },
   typeChipTextActive: { color: '#fff', fontWeight: '600' },
-  modalBtn: {
-    backgroundColor: theme.primary, borderRadius: 12,
-    padding: 16, alignItems: 'center', marginTop: 8
-  },
+  modalBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   modalBtnDisabled: { backgroundColor: theme.border },
   modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

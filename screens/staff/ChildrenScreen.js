@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput,
+  TouchableOpacity, TextInput, Pressable,
   Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -401,13 +401,13 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                style={s.deleteBtn}
+              <Pressable
+                style={({ pressed }) => [s.deleteBtn, pressed && { opacity: 0.5 }]}
                 onPress={() => onSupprimerEnfant(enfant)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
               >
                 <Text style={s.deleteBtnIcon}>🗑️</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         );
