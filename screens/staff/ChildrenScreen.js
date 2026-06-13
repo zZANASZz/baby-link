@@ -19,7 +19,7 @@ export default function ChildrenScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [modalAdd, setModalAdd] = useState(false);
   const [prenom, setPrenom] = useState('');
-  const [nom, setNom] = useState('');
+  const [dateNaissance, setDateNaissance] = useState('');
   const [section, setSection] = useState('petite');
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
@@ -43,22 +43,18 @@ export default function ChildrenScreen({ navigation }) {
 
         const today = new Date().toISOString().split('T')[0];
 
-        // Charger les présences du jour
         const { data: presData } = await supabase
           .from('presences_journalieres')
-          .select('*')
-          .eq('date', today)
+          .select('*').eq('date', today)
           .in('enfant_id', (enf || []).map(e => e.id));
 
         const presMap = {};
         (presData || []).forEach(p => { presMap[p.enfant_id] = p.present; });
         setPresences(presMap);
 
-        // Charger les rapports du jour
         const { data: rapData } = await supabase
           .from('rapports')
-          .select('enfant_id, brouillon')
-          .eq('date', today)
+          .select('enfant_id, brouillon').eq('date', today)
           .in('enfant_id', (enf || []).map(e => e.id));
 
         const rapMap = {};
@@ -79,16 +75,12 @@ export default function ChildrenScreen({ navigation }) {
       setPresences(prev => ({ ...prev, [enfantId]: nouvelEtat }));
 
       const { data: existing } = await supabase
-        .from('presences_journalieres')
-        .select('id')
-        .eq('enfant_id', enfantId)
-        .eq('date', today)
-        .maybeSingle();
+        .from('presences_journalieres').select('id')
+        .eq('enfant_id', enfantId).eq('date', today).maybeSingle();
 
       if (existing) {
         await supabase.from('presences_journalieres')
-          .update({ present: nouvelEtat })
-          .eq('id', existing.id);
+          .update({ present: nouvelEtat }).eq('id', existing.id);
       } else {
         await supabase.from('presences_journalieres')
           .insert({ enfant_id: enfantId, date: today, present: nouvelEtat });
@@ -96,9 +88,22 @@ export default function ChildrenScreen({ navigation }) {
     } catch (e) { console.log(e); }
   }
 
+  function normaliserDate(input) {
+    if (!input || !input.trim()) return null;
+    const val = input.trim();
+    if (val.includes('-') && val.split('-')[0].length === 4) return val;
+    const sep = val.includes('/') ? '/' : '-';
+    const parts = val.split(sep);
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    return null;
+  }
+
   async function ajouterEnfant() {
-    if (!prenom.trim() || !nom.trim()) {
-      Alert.alert(t('error'), 'Prénom et nom sont obligatoires');
+    if (!prenom.trim()) {
+      Alert.alert(t('error'), 'Le prénom est obligatoire');
       return;
     }
     setAdding(true);
@@ -108,11 +113,13 @@ export default function ChildrenScreen({ navigation }) {
         .from('profiles').select('creche_id').eq('id', user.id).single();
 
       const codeEnfant = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const dateNorm = normaliserDate(dateNaissance);
+
       const { error } = await supabase
         .from('enfants').insert({
           prenom: prenom.trim(),
-          nom: nom.trim(),
-          date_naissance: null,
+          nom: '',
+          date_naissance: dateNorm,
           creche_id: prof.creche_id,
           code_enfant: codeEnfant,
           section: section,
@@ -135,7 +142,7 @@ export default function ChildrenScreen({ navigation }) {
         ]
       );
       setModalAdd(false);
-      setPrenom(''); setNom(''); setSection('petite');
+      setPrenom(''); setDateNaissance(''); setSection('petite');
     } catch (e) { Alert.alert(t('error'), e.message); }
     setAdding(false);
   }
@@ -143,7 +150,7 @@ export default function ChildrenScreen({ navigation }) {
   async function supprimerEnfant(enfant) {
     Alert.alert(
       t('delete'),
-      `Supprimer ${enfant.prenom} ${enfant.nom} et tous ses rapports ?`,
+      `Supprimer ${enfant.prenom} et tous ses rapports ?`,
       [
         { text: t('cancel'), style: 'cancel' },
         {
@@ -154,6 +161,7 @@ export default function ChildrenScreen({ navigation }) {
             await supabase.from('photos_enfants').delete().eq('enfant_id', enfant.id);
             await supabase.from('presences_journalieres').delete().eq('enfant_id', enfant.id);
             await supabase.from('enfants').delete().eq('id', enfant.id);
+            setEnfants(prev => prev.filter(e => e.id !== enfant.id));
           }
         }
       ]
@@ -165,15 +173,13 @@ export default function ChildrenScreen({ navigation }) {
     Alert.alert('✅ Copié !', `Code copié dans le presse-papier :\n\n${code}`);
   }
 
-  // Filtrer par recherche
   const enfantsFiltres = enfants.filter(e =>
-    `${e.prenom} ${e.nom}`.toLowerCase().includes(search.toLowerCase())
+    `${e.prenom} ${e.nom || ''}`.toLowerCase().includes(search.toLowerCase())
   );
 
   const petiteSection = enfantsFiltres.filter(e => e.section === 'petite' || !e.section);
   const grandeSection = enfantsFiltres.filter(e => e.section === 'grande');
 
-  // Compteurs
   const totalPresents = Object.values(presences).filter(v => v === true).length;
   const totalAbsents = Object.values(presences).filter(v => v === false).length;
   const totalARapporter = enfants.filter(e => !rapportsDuJour[e.id]).length;
@@ -188,7 +194,6 @@ export default function ChildrenScreen({ navigation }) {
 
   return (
     <View style={s.container}>
-      {/* Header */}
       <View style={s.header}>
         <Text style={s.title}>{t('children')}</Text>
         <TouchableOpacity style={s.addBtn} onPress={() => setModalAdd(true)}>
@@ -196,7 +201,6 @@ export default function ChildrenScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Barre de recherche */}
       <View style={s.searchBar}>
         <Text style={s.searchIcon}>🔍</Text>
         <TextInput
@@ -213,7 +217,6 @@ export default function ChildrenScreen({ navigation }) {
         )}
       </View>
 
-      {/* Compteurs */}
       <View style={s.statsRow}>
         <View style={[s.statCard, { backgroundColor: theme.successLight }]}>
           <Text style={[s.statNum, { color: theme.success }]}>{totalPresents}</Text>
@@ -240,51 +243,39 @@ export default function ChildrenScreen({ navigation }) {
           </View>
         ) : (
           <View style={s.listContainer}>
-            {/* Petite section */}
             <SectionBlock
-              titre={t('petiteSection')}
-              sousTitre="0–18 mois"
+              titre={t('petiteSection')} sousTitre="0–18 mois"
               enfants={petiteSection}
-              couleurPill={theme.petiteSection}
-              couleurPillText={theme.petiteSectionText}
-              presences={presences}
-              rapportsDuJour={rapportsDuJour}
+              couleurPill={theme.petiteSection} couleurPillText={theme.petiteSectionText}
+              presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
               onTogglePresence={togglePresence}
               onSupprimerEnfant={supprimerEnfant}
               onCopierCode={copierCode}
-              theme={theme}
-              t={t}
+              theme={theme} t={t}
             />
-
-            {/* Grande section */}
             <SectionBlock
-              titre={t('grandeSection')}
-              sousTitre="18–36 mois"
+              titre={t('grandeSection')} sousTitre="18–36 mois"
               enfants={grandeSection}
-              couleurPill={theme.grandeSection}
-              couleurPillText={theme.grandeSectionText}
-              presences={presences}
-              rapportsDuJour={rapportsDuJour}
+              couleurPill={theme.grandeSection} couleurPillText={theme.grandeSectionText}
+              presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
               onTogglePresence={togglePresence}
               onSupprimerEnfant={supprimerEnfant}
               onCopierCode={copierCode}
-              theme={theme}
-              t={t}
+              theme={theme} t={t}
             />
           </View>
         )}
         <View style={{ height: 30 }} />
       </ScrollView>
 
-      {/* Modal ajouter enfant */}
       <ModalWithKeyboard
         visible={modalAdd}
-        onClose={() => { setModalAdd(false); setPrenom(''); setNom(''); setSection('petite'); }}
+        onClose={() => { setModalAdd(false); setPrenom(''); setDateNaissance(''); setSection('petite'); }}
         title={t('addChildTitle')}
       >
-        <Text style={s.inputLabel}>{t('firstName')}</Text>
+        <Text style={s.inputLabel}>{t('firstName')} *</Text>
         <TextInput
           style={s.input}
           placeholder={t('firstName')}
@@ -293,13 +284,15 @@ export default function ChildrenScreen({ navigation }) {
           onChangeText={setPrenom}
           autoFocus
         />
-        <Text style={s.inputLabel}>{t('lastName')}</Text>
+
+        <Text style={s.inputLabel}>Date de naissance (optionnel)</Text>
         <TextInput
           style={s.input}
-          placeholder={t('lastName')}
+          placeholder="Ex: 15-03-2024"
           placeholderTextColor={theme.placeholder}
-          value={nom}
-          onChangeText={setNom}
+          value={dateNaissance}
+          onChangeText={setDateNaissance}
+          keyboardType="numbers-and-punctuation"
         />
 
         <Text style={s.inputLabel}>Section</Text>
@@ -323,9 +316,9 @@ export default function ChildrenScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[s.modalBtn, (!prenom.trim() || !nom.trim()) && s.modalBtnDisabled]}
+          style={[s.modalBtn, !prenom.trim() && s.modalBtnDisabled]}
           onPress={ajouterEnfant}
-          disabled={adding || !prenom.trim() || !nom.trim()}
+          disabled={adding || !prenom.trim()}
         >
           {adding ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>{t('add')}</Text>}
         </TouchableOpacity>
@@ -336,15 +329,11 @@ export default function ChildrenScreen({ navigation }) {
 
 function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onTogglePresence, onSupprimerEnfant, onCopierCode, theme, t }) {
   if (enfants.length === 0) return null;
-
   const presents = enfants.filter(e => presences[e.id] === true).length;
-  const absents = enfants.filter(e => presences[e.id] === false).length;
-
   const s = styles(theme);
 
   return (
     <View style={s.sectionBlock}>
-      {/* En-tête section */}
       <View style={s.sectionHeader}>
         <View style={s.sectionHeaderLeft}>
           <View style={[s.sectionPill, { backgroundColor: couleurPill }]}>
@@ -358,69 +347,69 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
         </Text>
       </View>
 
-      {/* Liste enfants */}
       {enfants.map((enfant, index) => {
         const isPresent = presences[enfant.id];
         const rapportStatus = rapportsDuJour[enfant.id];
 
         return (
-          <TouchableOpacity
-            key={enfant.id}
-            style={[s.enfantRow, index === 0 && s.enfantRowFirst]}
-            onPress={() => onPressEnfant(enfant)}
-            activeOpacity={0.7}
-          >
-            <Avatar enfant={enfant} size={40} />
-
-            <View style={s.enfantInfo}>
-              <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
-              <TouchableOpacity onPress={() => onCopierCode(enfant.code_enfant)}>
-                <Text style={s.enfantCode}>#{enfant.code_enfant}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={s.enfantBadges}>
-              {/* Badge rapport */}
-              {rapportStatus === 'publie' && (
-                <View style={[s.badge, { backgroundColor: theme.successLight }]}>
-                  <Text style={[s.badgeText, { color: theme.success }]}>✓ Rapport</Text>
-                </View>
-              )}
-              {rapportStatus === 'brouillon' && (
-                <View style={[s.badge, { backgroundColor: theme.primarySoft }]}>
-                  <Text style={[s.badgeText, { color: theme.primary }]}>✎ Brouillon</Text>
-                </View>
-              )}
-
-              {/* Toggle présence */}
-              <TouchableOpacity
-                style={[
-                  s.presenceBadge,
-                  isPresent === true && { backgroundColor: theme.successLight, borderColor: theme.success },
-                  isPresent === false && { backgroundColor: theme.dangerLight, borderColor: theme.danger },
-                  isPresent === undefined && { backgroundColor: theme.card, borderColor: theme.border },
-                ]}
-                onPress={() => onTogglePresence(enfant.id)}
-              >
-                <Text style={[
-                  s.presenceBadgeText,
-                  isPresent === true && { color: theme.success },
-                  isPresent === false && { color: theme.danger },
-                  isPresent === undefined && { color: theme.textSecondary },
-                ]}>
-                  {isPresent === true ? '✓ Présent' : isPresent === false ? '✗ Absent' : '? Marquer'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
+          <View key={enfant.id} style={[s.enfantRow, index === 0 && s.enfantRowFirst]}>
+            {/* Zone cliquable gauche → ouvre rapport */}
             <TouchableOpacity
-              style={s.deleteBtn}
-              onPress={() => onSupprimerEnfant(enfant)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={s.enfantRowInner}
+              onPress={() => onPressEnfant(enfant)}
+              activeOpacity={0.7}
             >
-              <Text style={s.deleteBtnIcon}>🗑️</Text>
+              <Avatar enfant={enfant} size={40} />
+              <View style={s.enfantInfo}>
+                <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom || ''}</Text>
+                <TouchableOpacity onPress={() => onCopierCode(enfant.code_enfant)}>
+                  <Text style={s.enfantCode}>#{enfant.code_enfant}</Text>
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
-          </TouchableOpacity>
+
+            {/* Actions droite indépendantes */}
+            <View style={s.enfantActions}>
+              <View style={s.enfantBadges}>
+                {rapportStatus === 'publie' && (
+                  <View style={[s.badge, { backgroundColor: theme.successLight }]}>
+                    <Text style={[s.badgeText, { color: theme.success }]}>✓ Rapport</Text>
+                  </View>
+                )}
+                {rapportStatus === 'brouillon' && (
+                  <View style={[s.badge, { backgroundColor: theme.primarySoft }]}>
+                    <Text style={[s.badgeText, { color: theme.primary }]}>✎ Brouillon</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[
+                    s.presenceBadge,
+                    isPresent === true && { backgroundColor: theme.successLight, borderColor: theme.success },
+                    isPresent === false && { backgroundColor: theme.dangerLight, borderColor: theme.danger },
+                    isPresent === undefined && { backgroundColor: theme.card, borderColor: theme.border },
+                  ]}
+                  onPress={() => onTogglePresence(enfant.id)}
+                >
+                  <Text style={[
+                    s.presenceBadgeText,
+                    isPresent === true && { color: theme.success },
+                    isPresent === false && { color: theme.danger },
+                    isPresent === undefined && { color: theme.textSecondary },
+                  ]}>
+                    {isPresent === true ? '✓ Présent' : isPresent === false ? '✗ Absent' : '? Marquer'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={s.deleteBtn}
+                onPress={() => onSupprimerEnfant(enfant)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Text style={s.deleteBtnIcon}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         );
       })}
     </View>
@@ -432,16 +421,11 @@ const styles = (theme) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12,
+    alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12,
   },
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
-  addBtn: {
-    backgroundColor: theme.primary, borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 9,
-  },
+  addBtn: { backgroundColor: theme.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-
-  // Barre de recherche
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: theme.card, borderRadius: 10, borderWidth: 1,
@@ -451,74 +435,50 @@ const styles = (theme) => StyleSheet.create({
   searchIcon: { fontSize: 14, marginRight: 8 },
   searchInput: { flex: 1, color: theme.text, fontSize: 14, padding: 0 },
   searchClear: { color: theme.textSecondary, fontSize: 14, paddingLeft: 8 },
-
-  // Compteurs
-  statsRow: {
-    flexDirection: 'row', gap: 8,
-    paddingHorizontal: 16, marginBottom: 14,
-  },
-  statCard: {
-    flex: 1, borderRadius: 14, padding: 12, alignItems: 'center',
-  },
+  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 14 },
+  statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center' },
   statNum: { fontSize: 22, fontWeight: '700', lineHeight: 26 },
   statLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
-
-  // Liste
   listContainer: { paddingHorizontal: 16, gap: 14 },
-
-  // Bloc section
   sectionBlock: {
     backgroundColor: theme.card, borderRadius: 16,
-    borderWidth: 1, borderColor: theme.border,
-    overflow: 'hidden',
+    borderWidth: 1, borderColor: theme.border, overflow: 'hidden',
   },
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 10,
   },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionPill: {
-    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3,
-  },
+  sectionPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
   sectionPillText: { fontSize: 11, fontWeight: '700' },
   sectionTitre: { fontSize: 14, fontWeight: '700', color: theme.text },
   sectionCount: { fontSize: 13 },
-
-  // Ligne enfant
   enfantRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 12,
     borderTopWidth: 1, borderTopColor: theme.border,
   },
   enfantRowFirst: { borderTopWidth: 1, borderTopColor: theme.border },
+  enfantRowInner: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   enfantInfo: { flex: 1, minWidth: 0 },
   enfantNom: { fontSize: 14, fontWeight: '600', color: theme.text },
   enfantCode: { fontSize: 11, color: theme.primary, marginTop: 2 },
-
-  // Badges
+  enfantActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   enfantBadges: { flexDirection: 'column', alignItems: 'flex-end', gap: 4 },
-  badge: {
-    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
-  },
+  badge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 10, fontWeight: '600' },
-  presenceBadge: {
-    borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3,
-  },
+  presenceBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   presenceBadgeText: { fontSize: 10, fontWeight: '700' },
-
   deleteBtn: { padding: 4 },
   deleteBtnIcon: { fontSize: 16 },
-
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: theme.textSecondary, fontSize: 15 },
-
-  // Modal
   inputLabel: { color: theme.text, fontSize: 14, fontWeight: '600', marginBottom: 8 },
   input: {
     backgroundColor: theme.inputBg, borderRadius: 10, borderWidth: 1,
     borderColor: theme.inputBorder, color: theme.text, fontSize: 15,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
   },
   sectionToggle: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   sectionToggleBtn: {
@@ -526,10 +486,7 @@ const styles = (theme) => StyleSheet.create({
     backgroundColor: theme.card, paddingVertical: 12, alignItems: 'center',
   },
   sectionToggleBtnText: { fontSize: 13, color: theme.textSecondary },
-  modalBtn: {
-    backgroundColor: theme.primary, borderRadius: 12,
-    padding: 16, alignItems: 'center', marginTop: 8,
-  },
+  modalBtn: { backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   modalBtnDisabled: { backgroundColor: theme.border },
   modalBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

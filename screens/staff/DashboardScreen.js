@@ -11,7 +11,7 @@ export default function DashboardScreen({ navigation }) {
   const { theme, t } = useTheme();
   const [profile, setProfile] = useState(null);
   const [creche, setCreche] = useState(null);
-  const [stats, setStats] = useState({ enfants: 0, rapports: 0, messages: 0, presents: 0 });
+  const [stats, setStats] = useState({ enfants: 0, rapports: 0, absents: 0, presents: 0 });
   const [rapportsDates, setRapportsDates] = useState({});
   const [totalEnfants, setTotalEnfants] = useState(0);
   const [enfantsARapporter, setEnfantsARapporter] = useState([]);
@@ -52,19 +52,7 @@ export default function DashboardScreen({ navigation }) {
           .select('*').eq('date', today)
           .in('enfant_id', enfantIds);
         const nbPresents = (presData || []).filter(p => p.present === true).length;
-
-        const { data: parentsDeLaCreche } = await supabase
-          .from('profiles').select('id')
-          .eq('creche_id', prof.creche_id).eq('role', 'parent');
-        const parentIds = (parentsDeLaCreche || []).map(p => p.id);
-
-        let messagesNonLus = 0;
-        if (parentIds.length > 0) {
-          const { data: msgs } = await supabase
-            .from('messages_parents').select('id')
-            .in('parent_id', parentIds).eq('lu', false);
-          messagesNonLus = msgs?.length || 0;
-        }
+        const nbAbsents = (presData || []).filter(p => p.present === false).length;
 
         const rapportesIds = rapportsDuJour.map(r => r.enfant_id);
         const nonRaportes = (enfants || []).filter(e => !rapportesIds.includes(e.id));
@@ -91,8 +79,8 @@ export default function DashboardScreen({ navigation }) {
         setStats({
           enfants: nbEnfants,
           rapports: rapportsDuJour.length,
-          messages: messagesNonLus,
           presents: nbPresents,
+          absents: nbAbsents,
         });
       }
     } catch (e) { console.log('Erreur dashboard:', e); }
@@ -164,13 +152,17 @@ export default function DashboardScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Stats — juste des compteurs, pas cliquables */}
+      {/* Stats — enfants cliquable, reste juste compteurs */}
       <View style={s.statsGrid}>
-        <View style={[s.statCard, { backgroundColor: theme.cardStat1 }]}>
+        <TouchableOpacity
+          style={[s.statCard, { backgroundColor: theme.cardStat1 }]}
+          onPress={() => navigation.navigate('Children')}
+          activeOpacity={0.7}
+        >
           <Text style={s.statEmoji}>👶</Text>
           <Text style={[s.statNumber, { color: theme.primary }]}>{stats.enfants}</Text>
           <Text style={s.statLabel}>{t('children')}</Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={[s.statCard, { backgroundColor: theme.cardStat2 }]}>
           <Text style={s.statEmoji}>✓</Text>
@@ -184,10 +176,10 @@ export default function DashboardScreen({ navigation }) {
           <Text style={s.statLabel}>Rapports</Text>
         </View>
 
-        <View style={[s.statCard, { backgroundColor: theme.cardStat4 }]}>
-          <Text style={s.statEmoji}>💬</Text>
-          <Text style={[s.statNumber, { color: theme.teal }]}>{stats.messages}</Text>
-          <Text style={s.statLabel}>Messages</Text>
+        <View style={[s.statCard, { backgroundColor: theme.dangerLight }]}>
+          <Text style={s.statEmoji}>✗</Text>
+          <Text style={[s.statNumber, { color: theme.danger }]}>{stats.absents}</Text>
+          <Text style={s.statLabel}>Absents</Text>
         </View>
       </View>
 
@@ -300,7 +292,6 @@ const styles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
-
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
     paddingHorizontal: 16, paddingTop: 20, paddingBottom: 16,
@@ -314,7 +305,6 @@ const styles = (theme) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   headerAvatarText: { fontSize: 16, fontWeight: '700', color: theme.primary },
-
   statsGrid: {
     flexDirection: 'row', flexWrap: 'wrap',
     paddingHorizontal: 16, gap: 10, marginBottom: 6,
@@ -326,7 +316,6 @@ const styles = (theme) => StyleSheet.create({
   statEmoji: { fontSize: 22, marginBottom: 6 },
   statNumber: { fontSize: 28, fontWeight: '700', lineHeight: 32 },
   statLabel: { fontSize: 11, color: theme.textSecondary, marginTop: 3, fontWeight: '500' },
-
   section: {
     marginHorizontal: 16, marginTop: 14,
     backgroundColor: theme.card, borderRadius: 16,
@@ -338,7 +327,6 @@ const styles = (theme) => StyleSheet.create({
   },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
   seeAll: { fontSize: 12, color: theme.primary, fontWeight: '600' },
-
   enfantRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 10, borderTopWidth: 1, borderTopColor: theme.border,
@@ -354,29 +342,22 @@ const styles = (theme) => StyleSheet.create({
   todoTagText: { fontSize: 10, fontWeight: '700' },
   voirPlusBtn: { paddingTop: 10, alignItems: 'center' },
   voirPlusText: { fontSize: 13, color: theme.primary, fontWeight: '600' },
-
   legend: { flexDirection: 'row', gap: 16, marginBottom: 12, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: theme.textSecondary, fontSize: 11 },
-
   calendarHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 14,
   },
   calNavBtn: { color: theme.text, fontSize: 26, paddingHorizontal: 8, fontWeight: '300' },
   calMonth: { fontSize: 15, fontWeight: '600', color: theme.text },
-
   weekDays: { flexDirection: 'row', marginBottom: 6 },
   weekDay: { flex: 1, textAlign: 'center', color: theme.textSecondary, fontSize: 11, fontWeight: '600' },
-
   daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayContainer: { width: '14.28%', alignItems: 'center', marginBottom: 6 },
   emptyDay: { width: '14.28%' },
-  day: {
-    width: 30, height: 30, borderRadius: 15,
-    justifyContent: 'center', alignItems: 'center',
-  },
+  day: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   dayText: { color: theme.text, fontSize: 12 },
   statusDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },
 });
