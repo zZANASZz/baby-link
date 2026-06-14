@@ -201,9 +201,11 @@ export default function WriteReportScreen({ route, navigation }) {
   }
 
   const [publishError, setPublishError] = useState('');
+  const [brouillonSaved, setBrouillonSaved] = useState(false);
 
   async function handleSave(publier) {
     setPublishError('');
+    setBrouillonSaved(false);
 
     // Validation : empêcher publication si rien rempli
     if (publier) {
@@ -218,6 +220,7 @@ export default function WriteReportScreen({ route, navigation }) {
 
     if (publier) setLoading(true);
     else setLoadingBrouillon(true);
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const today = new Date().toISOString().split('T')[0];
@@ -243,6 +246,7 @@ export default function WriteReportScreen({ route, navigation }) {
         data.sommeil = siesteNote || null;
         data.repas_bebe = null; data.siestes_bebe = null;
       }
+
       let error;
       if (brouillonId) {
         const { error: e } = await supabase.from('rapports').update(data).eq('id', brouillonId);
@@ -252,17 +256,25 @@ export default function WriteReportScreen({ route, navigation }) {
         error = e;
         if (nr) setBrouillonId(nr.id);
       }
-      if (error) { Alert.alert(t('error'), error.message); return; }
+
+      if (error) {
+        setPublishError(error.message);
+        return;
+      }
+
       await saveStock();
+
       if (publier) {
-        Alert.alert('✅ ' + t('reportPublished'), t('parentsCanSee'));
         navigation.goBack();
       } else {
-        Alert.alert('💾 ' + t('draftSaved'), t('draftNotVisible'));
+        setBrouillonSaved(true);
       }
-    } catch (e) { Alert.alert(t('error'), e.message); }
-    setLoading(false);
-    setLoadingBrouillon(false);
+    } catch (e) {
+      setPublishError(e.message || 'Une erreur est survenue.');
+    } finally {
+      setLoading(false);
+      setLoadingBrouillon(false);
+    }
   }
 
   function addRepas() { setRepas(prev => [...prev, { id: Date.now(), heure: '', type: 'biberon', quantite: '', note: '' }]); }
@@ -460,6 +472,11 @@ export default function WriteReportScreen({ route, navigation }) {
           {publishError ? (
             <View style={{ width: '100%', backgroundColor: '#ffe5e5', borderRadius: 10, padding: 12, marginBottom: 10 }}>
               <Text style={{ color: '#c0392b', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>⚠️ {publishError}</Text>
+            </View>
+          ) : null}
+          {brouillonSaved ? (
+            <View style={{ width: '100%', backgroundColor: '#e8f5e9', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              <Text style={{ color: '#2e7d32', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>💾 Brouillon enregistré</Text>
             </View>
           ) : null}
           <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
