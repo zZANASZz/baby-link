@@ -52,7 +52,7 @@ export default function DashboardScreen({ navigation }) {
           .select('*').eq('date', today)
           .in('enfant_id', enfantIds);
         const nbPresents = (presData || []).filter(p => p.present === true).length;
-        const nbAbsents = (presData || []).filter(p => p.present === false).length;
+        const nbAbsents = nbEnfants - nbPresents;
 
         const rapportesIds = rapportsDuJour.map(r => r.enfant_id);
         const nonRaportes = (enfants || []).filter(e => !rapportesIds.includes(e.id));

@@ -11,7 +11,7 @@ function HumeurSelector({ value, onChange, theme }) {
     { key: 'super', emoji: '😄', label: 'Super' },
     { key: 'bien', emoji: '🙂', label: 'Bien' },
     { key: 'neutre', emoji: '😐', label: 'Neutre' },
-    { key: 'difficile', emoji: '😢', label: 'Difficile' },
+    { key: 'difficile', emoji: '😕', label: 'Pas top' },
   ];
   const s = humeurStyles(theme);
   return (
@@ -201,6 +201,15 @@ export default function WriteReportScreen({ route, navigation }) {
   }
 
   async function handleSave(publier) {
+    // Bug fix : empêcher la publication si rien n'est rempli
+    if (publier) {
+      const rienRempli = !humeur && !humeurNote.trim() && !sante.trim() && !notesGenerales.trim();
+      if (rienRempli) {
+        Alert.alert('Rapport vide', 'Remplissez au moins l\'humeur ou une note avant de publier.');
+        return;
+      }
+    }
+
     if (publier) setLoading(true);
     else setLoadingBrouillon(true);
     try {
