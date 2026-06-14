@@ -200,12 +200,18 @@ export default function WriteReportScreen({ route, navigation }) {
     } catch (e) { console.log(e); }
   }
 
+  const [publishError, setPublishError] = useState('');
+
   async function handleSave(publier) {
-    // Bug fix : empêcher la publication si rien n'est rempli
+    setPublishError('');
+
+    // Validation : empêcher publication si rien rempli
     if (publier) {
-      const rienRempli = !humeur && !humeurNote.trim() && !sante.trim() && !notesGenerales.trim();
+      const champsBaseVides = !humeur && !humeurNote.trim() && !sante.trim() && !notesGenerales.trim();
+      const champsGrandeVides = !repasMidiQuantite && !repasGoûterQuantite && !siesteDebut.trim();
+      const rienRempli = isBebe ? champsBaseVides : (champsBaseVides && champsGrandeVides);
       if (rienRempli) {
-        Alert.alert('Rapport vide', 'Remplissez au moins l\'humeur ou une note avant de publier.');
+        setPublishError('Remplissez au moins un champ avant de publier.');
         return;
       }
     }
@@ -451,12 +457,19 @@ export default function WriteReportScreen({ route, navigation }) {
         </SectionRapport>
 
         <View style={s.buttonsRow}>
+          {publishError ? (
+            <View style={{ width: '100%', backgroundColor: '#ffe5e5', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              <Text style={{ color: '#c0392b', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>⚠️ {publishError}</Text>
+            </View>
+          ) : null}
+          <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
           <TouchableOpacity style={s.brouillonBtn} onPress={() => handleSave(false)} disabled={loadingBrouillon}>
             {loadingBrouillon ? <ActivityIndicator color={theme.primary} /> : <Text style={s.brouillonBtnText}>💾 Brouillon</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={s.publierBtn} onPress={() => handleSave(true)} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.publierBtnText}>✓ Publier</Text>}
           </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{ height: 60 }} />

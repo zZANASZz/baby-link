@@ -196,7 +196,7 @@ export default function DashboardScreen({ navigation }) {
             <TouchableOpacity
               key={enfant.id}
               style={[s.enfantRow, index === 0 && { borderTopWidth: 0 }]}
-              onPress={() => navigation.navigate('Children')}
+              onPress={() => navigation.navigate('WriteReport', { enfant })}
             >
               <View style={[s.avatar, { backgroundColor: theme.primarySoft }]}>
                 <Text style={[s.avatarText, { color: theme.primary }]}>
