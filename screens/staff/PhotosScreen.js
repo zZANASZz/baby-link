@@ -10,27 +10,6 @@ import { supabase } from '../../lib/supabase';
 import Avatar from '../../components/Avatar';
 import { useRealtime } from '../../lib/useRealtime';
 
-function ConfirmModal({ visible, message, onConfirm, onCancel, theme }) {
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <View style={{ backgroundColor: theme.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 320 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 8 }}>🗑️ Supprimer</Text>
-          <Text style={{ fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginBottom: 24 }}>{message}</Text>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity onPress={onCancel} style={{ flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center' }}>
-              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onConfirm} style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#e05c5c', alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontWeight: '700' }}>Supprimer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 export default function PhotosScreen() {
   const { theme, t } = useTheme();
   const [profile, setProfile] = useState(null);
@@ -42,7 +21,7 @@ export default function PhotosScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalSource, setModalSource] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({ visible: false, photo: null });
+  const [confirmingId, setConfirmingId] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -53,6 +32,14 @@ export default function PhotosScreen() {
       setTimeout(() => { if (action === 'camera') pickFromCamera(); else pickFromGallery(); }, 500);
     }
   }, [modalSource, pendingAction]);
+
+  // Auto-reset du bouton supprimer après 3 secondes
+  useEffect(() => {
+    if (confirmingId) {
+      const timer = setTimeout(() => setConfirmingId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [confirmingId]);
 
   useRealtime(['photos_enfants', 'enfants'], () => {
     if (selectedEnfant) loadPhotos(selectedEnfant.id);
@@ -120,12 +107,10 @@ export default function PhotosScreen() {
     setUploading(false);
   }
 
-  async function confirmerSuppression() {
-    const photo = confirmModal.photo;
-    setConfirmModal({ visible: false, photo: null });
-    if (!photo) return;
+  async function supprimerPhoto(photo) {
     await supabase.from('photos_enfants').delete().eq('id', photo.id);
     setPhotos(prev => prev.filter(p => p.id !== photo.id));
+    setConfirmingId(null);
   }
 
   async function setAsAvatar(photo) {
@@ -143,14 +128,6 @@ export default function PhotosScreen() {
 
   return (
     <View style={s.container}>
-      <ConfirmModal
-        visible={confirmModal.visible}
-        message="Supprimer cette photo ?"
-        onConfirm={confirmerSuppression}
-        onCancel={() => setConfirmModal({ visible: false, photo: null })}
-        theme={theme}
-      />
-
       <View style={s.header}>
         <Text style={s.title}>{t('photosTitle')}</Text>
         <TouchableOpacity style={s.uploadBtn} onPress={() => setModalSource(true)} disabled={uploading || !selectedEnfant}>
@@ -182,19 +159,33 @@ export default function PhotosScreen() {
               </View>
             ) : (
               <View style={s.photosGrid}>
-                {photos.map(photo => (
-                  <View key={photo.id} style={s.photoContainer}>
-                    <Image source={{ uri: photo.url }} style={s.photo} />
-                    <View style={s.photoActions}>
-                      <TouchableOpacity style={s.avatarBtn} onPress={() => setAsAvatar(photo)}>
-                        <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={s.deletePhotoBtn} onPress={() => setConfirmModal({ visible: true, photo })}>
-                        <Text style={s.deletePhotoBtnText}>🗑️</Text>
-                      </TouchableOpacity>
+                {photos.map(photo => {
+                  const isConfirming = confirmingId === photo.id;
+                  return (
+                    <View key={photo.id} style={s.photoContainer}>
+                      <Image source={{ uri: photo.url }} style={s.photo} />
+                      <View style={s.photoActions}>
+                        <TouchableOpacity style={s.avatarBtn} onPress={() => setAsAvatar(photo)}>
+                          <Text style={s.avatarBtnText}>{t('setAvatar')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.deletePhotoBtn, isConfirming && s.deleteBtnConfirm]}
+                          onPress={() => {
+                            if (isConfirming) {
+                              supprimerPhoto(photo);
+                            } else {
+                              setConfirmingId(photo.id);
+                            }
+                          }}
+                        >
+                          <Text style={[s.deletePhotoBtnText, isConfirming && s.deleteIconConfirm]}>
+                            {isConfirming ? 'Oui ?' : '🗑️'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           </ScrollView>
@@ -245,8 +236,10 @@ const styles = (theme) => StyleSheet.create({
   photoActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 6 },
   avatarBtn: { backgroundColor: theme.primaryLight, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   avatarBtnText: { color: theme.primary, fontSize: 12, fontWeight: '600' },
-  deletePhotoBtn: { padding: 8 },
-  deletePhotoBtnText: { fontSize: 20 },
+  deletePhotoBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
+  deleteBtnConfirm: { backgroundColor: '#e05c5c' },
+  deletePhotoBtnText: { fontSize: 18 },
+  deleteIconConfirm: { fontSize: 11, fontWeight: '700', color: '#fff' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: theme.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: theme.text, marginBottom: 20, textAlign: 'center' },

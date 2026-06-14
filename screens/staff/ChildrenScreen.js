@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput, Modal,
+  TouchableOpacity, TextInput,
   Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -10,34 +10,6 @@ import { supabase } from '../../lib/supabase';
 import ModalWithKeyboard from '../../components/ModalWithKeyboard';
 import Avatar from '../../components/Avatar';
 import { useRealtime } from '../../lib/useRealtime';
-
-// Modal de confirmation custom (remplace Alert.alert qui ne marche pas sur iOS PWA)
-function ConfirmModal({ visible, message, onConfirm, onCancel, theme }) {
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <View style={{ backgroundColor: theme.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 320 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 8 }}>🗑️ Supprimer</Text>
-          <Text style={{ fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginBottom: 24 }}>{message}</Text>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity
-              onPress={onCancel}
-              style={{ flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: theme.border, alignItems: 'center' }}
-            >
-              <Text style={{ color: theme.textSecondary, fontWeight: '600' }}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onConfirm}
-              style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#e05c5c', alignItems: 'center' }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '700' }}>Supprimer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
 
 export default function ChildrenScreen({ navigation }) {
   const { theme, t } = useTheme();
@@ -53,7 +25,6 @@ export default function ChildrenScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [presences, setPresences] = useState({});
   const [rapportsDuJour, setRapportsDuJour] = useState({});
-  const [confirmModal, setConfirmModal] = useState({ visible: false, enfant: null });
 
   useEffect(() => { loadData(); }, []);
   useRealtime(['enfants', 'presences_journalieres', 'rapports'], loadData);
@@ -70,6 +41,10 @@ export default function ChildrenScreen({ navigation }) {
         const { data: presData } = await supabase.from('presences_journalieres').select('*').eq('date', today).in('enfant_id', (enf || []).map(e => e.id));
         const presMap = {};
         (presData || []).forEach(p => { presMap[p.enfant_id] = p.present; });
+        // Par défaut tous les enfants sont absents
+        (enf || []).forEach(e => {
+          if (presMap[e.id] === undefined) presMap[e.id] = false;
+        });
         setPresences(presMap);
         const { data: rapData } = await supabase.from('rapports').select('enfant_id, brouillon').eq('date', today).in('enfant_id', (enf || []).map(e => e.id));
         const rapMap = {};
@@ -85,7 +60,7 @@ export default function ChildrenScreen({ navigation }) {
     try {
       const today = new Date().toISOString().split('T')[0];
       const actuel = presences[enfantId];
-      const nouvelEtat = actuel === undefined ? true : actuel === true ? false : true;
+      const nouvelEtat = actuel === true ? false : true;
       setPresences(prev => ({ ...prev, [enfantId]: nouvelEtat }));
       const { data: existing } = await supabase.from('presences_journalieres').select('id').eq('enfant_id', enfantId).eq('date', today).maybeSingle();
       if (existing) {
@@ -132,10 +107,7 @@ export default function ChildrenScreen({ navigation }) {
     setAdding(false);
   }
 
-  async function confirmerSuppression() {
-    const enfant = confirmModal.enfant;
-    setConfirmModal({ visible: false, enfant: null });
-    if (!enfant) return;
+  async function supprimerEnfant(enfant) {
     await supabase.from('rapports').delete().eq('enfant_id', enfant.id);
     await supabase.from('enfants_parents').delete().eq('enfant_id', enfant.id);
     await supabase.from('photos_enfants').delete().eq('enfant_id', enfant.id);
@@ -161,14 +133,6 @@ export default function ChildrenScreen({ navigation }) {
 
   return (
     <View style={s.container}>
-      <ConfirmModal
-        visible={confirmModal.visible}
-        message={`Supprimer ${confirmModal.enfant?.prenom} et tous ses rapports ?`}
-        onConfirm={confirmerSuppression}
-        onCancel={() => setConfirmModal({ visible: false, enfant: null })}
-        theme={theme}
-      />
-
       <View style={s.header}>
         <Text style={s.title}>{t('children')}</Text>
         <TouchableOpacity style={s.addBtn} onPress={() => setModalAdd(true)}>
@@ -207,7 +171,7 @@ export default function ChildrenScreen({ navigation }) {
               enfants={petiteSection} couleurPill={theme.petiteSection} couleurPillText={theme.petiteSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onSupprimerEnfant={(enfant) => setConfirmModal({ visible: true, enfant })}
+              onSupprimerEnfant={supprimerEnfant}
               onTogglePresence={togglePresence} theme={theme} t={t}
             />
             <SectionBlock
@@ -215,7 +179,7 @@ export default function ChildrenScreen({ navigation }) {
               enfants={grandeSection} couleurPill={theme.grandeSection} couleurPillText={theme.grandeSectionText}
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
-              onSupprimerEnfant={(enfant) => setConfirmModal({ visible: true, enfant })}
+              onSupprimerEnfant={supprimerEnfant}
               onTogglePresence={togglePresence} theme={theme} t={t}
             />
           </View>
@@ -247,8 +211,17 @@ export default function ChildrenScreen({ navigation }) {
 
 function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onSupprimerEnfant, onTogglePresence, theme, t }) {
   if (enfants.length === 0) return null;
+  const [confirmingId, setConfirmingId] = useState(null);
   const presents = enfants.filter(e => presences[e.id] === true).length;
   const s = styles(theme);
+
+  // Auto-reset du bouton supprimer après 3 secondes
+  useEffect(() => {
+    if (confirmingId) {
+      const timer = setTimeout(() => setConfirmingId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [confirmingId]);
 
   return (
     <View style={s.sectionBlock}>
@@ -268,6 +241,8 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
       {enfants.map((enfant, index) => {
         const isPresent = presences[enfant.id];
         const rapportStatus = rapportsDuJour[enfant.id];
+        const isConfirming = confirmingId === enfant.id;
+
         return (
           <View key={enfant.id} style={[s.enfantRow, index === 0 && s.enfantRowFirst]}>
             <TouchableOpacity style={s.enfantLeft} onPress={() => onPressEnfant(enfant)} activeOpacity={0.7}>
@@ -281,24 +256,37 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
             <View style={s.enfantRight}>
               {rapportStatus === 'publie' && <View style={[s.badge, { backgroundColor: theme.successLight }]}><Text style={[s.badgeText, { color: theme.success }]}>✓</Text></View>}
               {rapportStatus === 'brouillon' && <View style={[s.badge, { backgroundColor: theme.primarySoft }]}><Text style={[s.badgeText, { color: theme.primary }]}>✎</Text></View>}
+
               <TouchableOpacity
                 style={[s.presenceBadge,
                   isPresent === true && { backgroundColor: theme.successLight, borderColor: theme.success },
                   isPresent === false && { backgroundColor: theme.dangerLight, borderColor: theme.danger },
-                  isPresent === undefined && { backgroundColor: theme.card, borderColor: theme.border },
                 ]}
                 onPress={() => onTogglePresence(enfant.id)}
               >
                 <Text style={[s.presenceBadgeText,
                   isPresent === true && { color: theme.success },
                   isPresent === false && { color: theme.danger },
-                  isPresent === undefined && { color: theme.textSecondary },
                 ]}>
-                  {isPresent === true ? '✓ Présent' : isPresent === false ? '✗ Absent' : '? Marquer'}
+                  {isPresent === true ? '✓ Présent' : '✗ Absent'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.deleteBtn} onPress={() => onSupprimerEnfant(enfant)}>
-                <Text style={s.deleteBtnIcon}>🗑️</Text>
+
+              {/* Double tap pour supprimer — 1er tap = rouge, 2e tap = supprime */}
+              <TouchableOpacity
+                style={[s.deleteBtn, isConfirming && s.deleteBtnConfirm]}
+                onPress={() => {
+                  if (isConfirming) {
+                    onSupprimerEnfant(enfant);
+                    setConfirmingId(null);
+                  } else {
+                    setConfirmingId(enfant.id);
+                  }
+                }}
+              >
+                <Text style={[s.deleteBtnText, isConfirming && s.deleteBtnTextConfirm]}>
+                  {isConfirming ? 'Oui ?' : '🗑️'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -342,8 +330,10 @@ const styles = (theme) => StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '600' },
   presenceBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   presenceBadgeText: { fontSize: 10, fontWeight: '700' },
-  deleteBtn: { padding: 8 },
-  deleteBtnIcon: { fontSize: 18 },
+  deleteBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
+  deleteBtnConfirm: { backgroundColor: '#e05c5c' },
+  deleteBtnText: { fontSize: 16 },
+  deleteBtnTextConfirm: { fontSize: 11, fontWeight: '700', color: '#fff' },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: theme.textSecondary, fontSize: 15 },

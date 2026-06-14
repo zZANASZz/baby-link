@@ -10,29 +10,31 @@ export default function ModalWithKeyboard({ visible, onClose, title, children })
   const s = styles(theme);
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
-          <TouchableOpacity activeOpacity={1} style={s.content}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.overlay}>
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={onClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={s.kavWrapper}
+        >
+          <View style={s.content}>
             <View style={s.header}>
               <Text style={s.title}>{title}</Text>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={s.close}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              bounces={false}
             >
               {children}
               <View style={{ height: 20 }} />
             </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -40,8 +42,14 @@ export default function ModalWithKeyboard({ visible, onClose, title, children })
 const styles = (theme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  kavWrapper: {
+    width: '100%',
   },
   content: {
     backgroundColor: theme.card,
@@ -65,5 +73,6 @@ const styles = (theme) => StyleSheet.create({
   close: {
     color: theme.textSecondary,
     fontSize: 18,
+    padding: 4,
   },
 });
