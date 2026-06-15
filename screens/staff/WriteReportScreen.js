@@ -168,9 +168,9 @@ export default function WriteReportScreen({ route, navigation }) {
           if (data.repas_bebe) setRepas(JSON.parse(data.repas_bebe));
           if (data.siestes_bebe) setSiestes(JSON.parse(data.siestes_bebe));
         } else {
-          setRepasMidiQuantite(data.repas_midi_stars ? String(data.repas_midi_stars) : null);
+          setRepasMidiQuantite(data.repas_midi_stars ? ({ 1: 'rien', 2: 'peu', 3: 'moitie', 4: 'bien', 5: 'tout' }[data.repas_midi_stars] || null) : null);
           setRepasMidiNote(data.repas_midi_note || '');
-          setRepasGoûterQuantite(data.repas_aprem_stars ? String(data.repas_aprem_stars) : null);
+          setRepasGoûterQuantite(data.repas_aprem_stars ? ({ 1: 'rien', 2: 'peu', 3: 'moitie', 4: 'bien', 5: 'tout' }[data.repas_aprem_stars] || null) : null);
           setRepasGoûterNote(data.repas_aprem_note || '');
           setSiesteDebut(data.sieste_debut || '');
           setSiesteFin(data.sieste_fin || '');
@@ -237,9 +237,10 @@ export default function WriteReportScreen({ route, navigation }) {
         data.repas_aprem_stars = null; data.repas_aprem_note = null;
         data.sieste_debut = null; data.sieste_fin = null; data.sommeil = null;
       } else {
-        data.repas_midi_stars = repasMidiQuantite || null;
+        const QUANTITE_TO_INT = { rien: 1, peu: 2, moitie: 3, bien: 4, tout: 5 };
+        data.repas_midi_stars = repasMidiQuantite ? (QUANTITE_TO_INT[repasMidiQuantite] || null) : null;
         data.repas_midi_note = repasMidiNote || null;
-        data.repas_aprem_stars = repasGoûterQuantite || null;
+        data.repas_aprem_stars = repasGoûterQuantite ? (QUANTITE_TO_INT[repasGoûterQuantite] || null) : null;
         data.repas_aprem_note = repasGoûterNote || null;
         data.sieste_debut = siesteDebut || null;
         data.sieste_fin = siesteFin || null;
