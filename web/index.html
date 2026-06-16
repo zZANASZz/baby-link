@@ -13,9 +13,24 @@
     <link rel="manifest" href="/manifest.json" />
     <title>Baby-link</title>
    <style>
-  html, body { height: 100%; margin: 0; padding: 0; }
-  body { overflow-x: hidden; overflow-y: auto; }
-  #root { display: flex; height: 100%; flex: 1; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;      /* fallback anciens navigateurs */
+    height: 100dvh;     /* viewport dynamique iOS + Android récents */
+  }
+  body {
+    overflow-x: hidden;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  #root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
   input, textarea, select { font-size: 16px !important; }
 </style>
   </head>

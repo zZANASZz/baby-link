@@ -16,9 +16,19 @@
         height: 100%;
       }
       /* These styles disable body scrolling if you are using <ScrollView> */
-      body {
-        overflow-x: hidden;
-        overflow-y: auto;
+      html, body {
+        height: 100vh;
+        height: 100dvh;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
       }
       /* These styles make the root element full-height */
       #root {
@@ -44,6 +54,6 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/_expo/static/js/web/index-142f85ed0469602e8240981cd7d904ec.js" defer></script>
+  <script src="/_expo/static/js/web/index-56b4f77a3cea1591bccd866d649cfe9a.js" defer></script>
 </body>
 </html>
