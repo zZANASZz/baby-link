@@ -19,31 +19,42 @@ html = html.replace(
     <style id="expo-reset">`
 );
 
-// FIX SCROLL iOS + ANDROID : hauteur dynamique sur html/body/#root
-// On remplace tout bloc body { overflow... } par notre version dvh
+// FIX SCROLL : on garde overflow-y auto comme FILET DE SECURITE (ne jamais le bloquer)
+// + on ajoute dvh en progressive enhancement pour corriger l'adresse bar Android
 html = html.replace(
   /body\s*\{\s*overflow:\s*hidden;\s*\}/,
   `html, body {
-        height: 100vh;
-        height: 100dvh;
+        height: 100%;
         margin: 0;
         padding: 0;
-        overflow: hidden;
+      }
+      body {
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       #root {
         display: flex;
         flex-direction: column;
-        height: 100vh;
-        height: 100dvh;
-        overflow: hidden;
+        height: 100%;
+        min-height: 100%;
+      }
+      @supports (height: 100dvh) {
+        html, body, #root {
+          height: 100dvh;
+        }
       }`
 );
 
-// Filet de sécurité : si le bloc ci-dessus n'a pas matché, on injecte le CSS avant </head>
-if (!html.includes('height: 100dvh')) {
+// Filet de sécurité si le bloc n'a pas matché
+if (!html.includes('#root') || !html.includes('overflow-y: auto')) {
   html = html.replace('</head>', `  <style id="scroll-fix">
-    html, body { height: 100vh; height: 100dvh; margin: 0; padding: 0; overflow: hidden; }
-    #root { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #root { display: flex; flex-direction: column; height: 100%; min-height: 100%; }
+    @supports (height: 100dvh) {
+      html, body, #root { height: 100dvh; }
+    }
     input, textarea, select { font-size: 16px !important; }
   </style>
 </head>`);
@@ -64,4 +75,4 @@ if (!html.includes('apple-mobile-web-app-capable')) {
 }
 
 fs.writeFileSync(indexPath, html);
-console.log('✅ index.html patché (scroll dvh iOS + Android) !');
+console.log('✅ index.html patché (scroll restauré + dvh Android en bonus) !');

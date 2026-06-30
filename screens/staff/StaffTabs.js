@@ -121,13 +121,11 @@ export default function StaffTabs({ navigation }) {
   );
 }
 
-const isWeb = Platform.OS === 'web';
-
 const styles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
-    ...(isWeb ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } : {}),
+    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column', height: '100%' } : {}),
   },
   safeArea: {
     backgroundColor: theme.background,
@@ -190,6 +188,6 @@ const styles = (theme) => StyleSheet.create({
   },
   content: {
     flex: 1,
-    ...(isWeb ? { overflowY: 'auto', overflowX: 'hidden', minHeight: 0, WebkitOverflowScrolling: 'touch' } : {}),
+    ...(Platform.OS === 'web' ? { overflow: 'auto', minHeight: 0, WebkitOverflowScrolling: 'touch' } : {}),
   },
 });
