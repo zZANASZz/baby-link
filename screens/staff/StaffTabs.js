@@ -125,7 +125,7 @@ const styles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
-    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column', height: '100%' } : {}),
+    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column', height: '100dvh' } : {}),
   },
   safeArea: {
     backgroundColor: theme.background,
@@ -188,6 +188,6 @@ const styles = (theme) => StyleSheet.create({
   },
   content: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { overflow: 'auto', minHeight: 0, WebkitOverflowScrolling: 'touch' } : {}),
+    ...(Platform.OS === 'web' ? { overflow: 'auto', minHeight: 0 } : {}),
   },
 });
