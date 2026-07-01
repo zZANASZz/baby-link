@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, KeyboardAvoidingView,
+  StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
@@ -11,29 +11,52 @@ export default function JoinNurseryScreen({ navigation }) {
   const { theme, isDark, toggleTheme, t } = useTheme();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  async function refreshSession() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token
+        });
+      }
+    } catch (e) { console.log('refresh session:', e); }
+  }
 
   async function handleJoin() {
+    setErrorMsg('');
+    setSuccessMsg('');
     if (!code.trim()) {
-      Alert.alert(t('error'), 'Veuillez entrer un code');
+      setErrorMsg('Veuillez entrer un code');
       return;
     }
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setErrorMsg('Session expirée, reconnectez-vous.'); return; }
+
       const upperCode = code.trim().toUpperCase();
 
       const { data: crechePersonnel } = await supabase
         .from('creches')
         .select('id')
         .eq('code_invitation', upperCode)
-        .single();
+        .maybeSingle();
 
       if (crechePersonnel) {
-        await supabase.from('profiles')
+        const { error: errUpdate } = await supabase.from('profiles')
           .update({ creche_id: crechePersonnel.id, role: 'puericultrice' })
           .eq('id', user.id);
-        Alert.alert('✅', 'Vous avez rejoint la crèche comme puéricultrice !');
-        setLoading(false);
+
+        if (errUpdate) { setErrorMsg(errUpdate.message); return; }
+
+        // Rafraîchit la session immédiatement, sans attendre un clic sur
+        // une alerte native qui ne s'affiche pas de façon fiable en PWA.
+        await refreshSession();
+        setSuccessMsg('✅ Vous avez rejoint la crèche comme puéricultrice !');
         return;
       }
 
@@ -41,22 +64,26 @@ export default function JoinNurseryScreen({ navigation }) {
         .from('creches')
         .select('id')
         .eq('code_parents', upperCode)
-        .single();
+        .maybeSingle();
 
       if (crecheParents) {
-        await supabase.from('profiles')
+        const { error: errUpdate } = await supabase.from('profiles')
           .update({ creche_id: crecheParents.id, role: 'parent' })
           .eq('id', user.id);
-        Alert.alert('✅', 'Vous avez rejoint la crèche comme parent !');
-        setLoading(false);
+
+        if (errUpdate) { setErrorMsg(errUpdate.message); return; }
+
+        await refreshSession();
+        setSuccessMsg('✅ Vous avez rejoint la crèche comme parent !');
         return;
       }
 
-      Alert.alert(t('error'), 'Code invalide. Vérifiez le code fourni par la directrice.');
+      setErrorMsg('Code invalide. Vérifiez le code fourni par la directrice.');
     } catch (e) {
-      Alert.alert(t('error'), e.message);
+      setErrorMsg(e.message || 'Une erreur est survenue.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const s = styles(theme);
@@ -87,6 +114,18 @@ export default function JoinNurseryScreen({ navigation }) {
             textAlign="center"
           />
         </View>
+
+        {errorMsg ? (
+          <View style={{ backgroundColor: '#ffe5e5', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+            <Text style={{ color: '#c0392b', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>⚠️ {errorMsg}</Text>
+          </View>
+        ) : null}
+
+        {successMsg ? (
+          <View style={{ backgroundColor: '#e8f5e9', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+            <Text style={{ color: '#2e7d32', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>{successMsg}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[s.joinBtn, !code.trim() && s.joinBtnDisabled]}

@@ -1,26 +1,90 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, KeyboardAvoidingView,
+  StyleSheet, KeyboardAvoidingView, Modal,
   Platform, ScrollView, ActivityIndicator
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
+
+function SuccessModal({ visible, codePersonnel, codeParents, onContinue, theme }) {
+  const [copied, setCopied] = useState('');
+
+  async function copier(code, label) {
+    await Clipboard.setStringAsync(code);
+    setCopied(label);
+    setTimeout(() => setCopied(''), 1500);
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <View style={{ backgroundColor: theme.card, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: theme.text, textAlign: 'center', marginBottom: 4 }}>🎉 Crèche créée !</Text>
+          <Text style={{ fontSize: 13, color: theme.textSecondary, textAlign: 'center', marginBottom: 20 }}>Notez bien ces codes, vous en aurez besoin</Text>
+
+          <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, marginBottom: 6 }}>Code personnel</Text>
+          <TouchableOpacity
+            onPress={() => copier(codePersonnel, 'personnel')}
+            style={{ backgroundColor: theme.background, borderRadius: 10, borderWidth: 1, borderColor: theme.border, padding: 14, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '700', color: theme.primary, letterSpacing: 2 }}>{codePersonnel}</Text>
+            <Text style={{ fontSize: 12, color: theme.primary, fontWeight: '600' }}>{copied === 'personnel' ? '✓ Copié' : '📋 Copier'}</Text>
+          </TouchableOpacity>
+
+          <Text style={{ fontSize: 12, fontWeight: '600', color: theme.textSecondary, marginBottom: 6 }}>Code parents</Text>
+          <TouchableOpacity
+            onPress={() => copier(codeParents, 'parents')}
+            style={{ backgroundColor: theme.background, borderRadius: 10, borderWidth: 1, borderColor: theme.border, padding: 14, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '700', color: theme.primary, letterSpacing: 2 }}>{codeParents}</Text>
+            <Text style={{ fontSize: 12, color: theme.primary, fontWeight: '600' }}>{copied === 'parents' ? '✓ Copié' : '📋 Copier'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onContinue}
+            style={{ backgroundColor: theme.primary, borderRadius: 12, padding: 16, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>J'ai noté, continuer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function CreateNurseryScreen({ navigation }) {
   const { theme, isDark, toggleTheme, t } = useTheme();
   const [nom, setNom] = useState('');
   const [adresse, setAdresse] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successData, setSuccessData] = useState(null);
+
+  async function refreshSession() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token
+        });
+      }
+    } catch (e) { console.log('refresh session:', e); }
+  }
 
   async function handleCreate() {
+    setErrorMsg('');
     if (!nom.trim()) {
-      Alert.alert(t('error'), 'Veuillez entrer un nom de crèche');
+      setErrorMsg('Veuillez entrer un nom de crèche');
       return;
     }
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setErrorMsg('Session expirée, reconnectez-vous.'); return; }
+
       const codePersonnel = Math.random().toString(36).substring(2, 8).toUpperCase();
       const codeParents = Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -34,35 +98,25 @@ export default function CreateNurseryScreen({ navigation }) {
         })
         .select().single();
 
-      if (errCreche) { Alert.alert(t('error'), errCreche.message); setLoading(false); return; }
+      if (errCreche) { setErrorMsg(errCreche.message); return; }
 
       const { error: errProfile } = await supabase
         .from('profiles')
         .update({ creche_id: creche.id, role: 'directrice' })
         .eq('id', user.id);
 
-      if (errProfile) { Alert.alert(t('error'), errProfile.message); setLoading(false); return; }
+      if (errProfile) { setErrorMsg(errProfile.message); return; }
 
-      Alert.alert(
-        '🎉 Crèche créée !',
-        `Code personnel :\n${codePersonnel}\n\nCode parents :\n${codeParents}\n\nNotez ces codes !`,
-        [
-          {
-            text: 'OK',
-            onPress: async () => {
-              const { data: { session } } = await supabase.auth.getSession();
-              await supabase.auth.setSession({
-                access_token: session.access_token,
-                refresh_token: session.refresh_token
-              });
-            }
-          }
-        ]
-      );
+      // On rafraîchit la session TOUT DE SUITE, sans attendre une interaction
+      // avec une alerte qui pourrait ne jamais s'afficher (PWA standalone).
+      await refreshSession();
+
+      setSuccessData({ codePersonnel, codeParents });
     } catch (e) {
-      Alert.alert(t('error'), e.message);
+      setErrorMsg(e.message || 'Une erreur est survenue.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const s = styles(theme);
@@ -72,6 +126,14 @@ export default function CreateNurseryScreen({ navigation }) {
       style={s.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <SuccessModal
+        visible={!!successData}
+        codePersonnel={successData?.codePersonnel}
+        codeParents={successData?.codeParents}
+        onContinue={() => setSuccessData(null)}
+        theme={theme}
+      />
+
       <ScrollView contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
 
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
@@ -102,6 +164,12 @@ export default function CreateNurseryScreen({ navigation }) {
             onChangeText={setAdresse}
           />
         </View>
+
+        {errorMsg ? (
+          <View style={{ backgroundColor: '#ffe5e5', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+            <Text style={{ color: '#c0392b', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>⚠️ {errorMsg}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[s.createBtn, (!nom.trim()) && s.createBtnDisabled]}
