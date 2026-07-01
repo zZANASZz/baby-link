@@ -119,6 +119,6 @@ const styles = (theme) => StyleSheet.create({
   },
   content: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { overflow: 'auto', minHeight: 0 } : {}),
+    ...(Platform.OS === 'web' ? { minHeight: 0, display: 'flex', flexDirection: 'column' } : {}),
   },
 });
