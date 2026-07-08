@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert, RefreshControl
+  TouchableOpacity, Alert, RefreshControl, Platform
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
@@ -96,7 +96,7 @@ export default function MembersScreen({ navigation }) {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
         {membres.length === 0 ? (
           <View style={s.empty}>

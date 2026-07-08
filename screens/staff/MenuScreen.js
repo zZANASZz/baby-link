@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, TextInput, Alert,
-  ActivityIndicator, RefreshControl
+  ActivityIndicator, RefreshControl, Platform
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
@@ -107,7 +107,7 @@ export default function MenuScreen() {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
         <View style={s.dateCard}>
           <Text style={s.dateText}>{formatToday()}</Text>

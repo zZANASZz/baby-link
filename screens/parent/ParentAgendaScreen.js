@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  RefreshControl
+  RefreshControl, Platform
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
@@ -48,7 +48,7 @@ export default function ParentAgendaScreen() {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
         {events.length === 0 ? (
           <View style={s.empty}>

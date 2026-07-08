@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Image, Modal,
-  Alert, ActivityIndicator, RefreshControl
+  Alert, ActivityIndicator, RefreshControl, Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../lib/theme';
@@ -148,7 +148,7 @@ export default function PhotosScreen() {
             ))}
           </ScrollView>
 
-          <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}>
+          <ScrollView refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}>
             {photos.length === 0 ? (
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>📸</Text>
