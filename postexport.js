@@ -17,33 +17,9 @@ html = html.replace(
     <style id="expo-reset">`
 );
 
-// FIX SCROLL ANDROID (Chrome/Blink) : ne pas laisser body scrollable.
-// Le body reste overflow:hidden (comportement documenté par défaut d'Expo,
-// cf. le commentaire "These styles disable body scrolling if you are using
-// <ScrollView>" juste au-dessus dans le HTML généré) : tout le scroll passe
-// exclusivement par le <ScrollView> interne de chaque écran. Un body
-// scrollable crée un 2e conteneur de scroll concurrent que Chrome/Android
-// gère mal (contrairement à Safari/iOS, plus permissif), et qui capte le
-// geste tactile sans jamais le relayer à la ScrollView.
-
-// FIX #root : flex-direction n'est pas défini par défaut par Expo (le CSS
-// standard retombe alors sur "row", pas "column") + alignement de la hauteur
-// sur 100dvh (viewport dynamique) en plus de 100% pour rester cohérent avec
-// StaffTabs.js/ParentTabs.js qui utilisent déjà 100dvh, et éviter tout écart
-// avec la barre d'adresse Android qui apparaît/disparaît.
 html = html.replace(
-  /#root\s*\{\s*display:\s*flex;\s*height:\s*100%;\s*flex:\s*1;\s*\}/,
-  `#root {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        flex: 1;
-      }
-      @supports (height: 100dvh) {
-        html, body, #root {
-          height: 100dvh;
-        }
-      }`
+  'body {\n        overflow: hidden;\n      }',
+  'body {\n        overflow-x: hidden;\n        overflow-y: auto;\n      }'
 );
 
 // Forcer le titre Baby-link
