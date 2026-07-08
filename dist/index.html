@@ -17,14 +17,20 @@
       }
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {
-        overflow-x: hidden;
-        overflow-y: auto;
+        overflow: hidden;
       }
       /* These styles make the root element full-height */
       #root {
         display: flex;
+        flex-direction: column;
         height: 100%;
         flex: 1;
+        touch-action: pan-y;
+      }
+      @supports (height: 100dvh) {
+        html, body, #root {
+          height: 100dvh;
+        }
       }
     </style>
   <meta name="theme-color" content="#7c3aed">
