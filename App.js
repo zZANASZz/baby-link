@@ -142,6 +142,30 @@ function runScrollDiagnostic() {
 }
 // ==== FIN SCROLL_DEBUG ====
 
+function ScrollDebugButton() {
+  return (
+    <div
+      id="scroll-debug-trigger"
+      onClick={runScrollDiagnostic}
+      style={{
+        position: 'fixed',
+        bottom: 12,
+        right: 12,
+        zIndex: 2147483646,
+        background: '#000',
+        color: '#0f0',
+        fontFamily: 'monospace',
+        fontSize: 11,
+        padding: '8px 10px',
+        borderRadius: 6,
+        border: '1px solid #0f0',
+      }}
+    >
+      🔍 Diagnostic scroll
+    </div>
+  );
+}
+
 export default function App() {
   useEffect(() => {
     if (SCROLL_DEBUG && Platform.OS === 'web') {
@@ -150,5 +174,10 @@ export default function App() {
     }
   }, []);
 
-  return <Navigation />;
+  return (
+    <>
+      <Navigation />
+      {SCROLL_DEBUG && Platform.OS === 'web' && <ScrollDebugButton />}
+    </>
+  );
 }
