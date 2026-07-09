@@ -78,7 +78,7 @@ const styles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
-    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column', height: '100dvh' } : {}),
+    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column', minHeight: 0 } : {}),
   },
   safeArea: {
     backgroundColor: theme.background,

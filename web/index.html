@@ -15,9 +15,33 @@
    <style>
   html, body { height: 100%; margin: 0; padding: 0; }
   body { overflow: hidden; }
-  #root { display: flex; flex-direction: column; height: 100%; flex: 1; touch-action: pan-y; }
-  @supports (height: 100dvh) {
-    html, body, #root { height: 100dvh; }
+  /* FIX SCROLL ANDROID (racine du bug, confirmé sur device réel) : #root ne
+     doit PAS dépendre d'une cascade height:100%/100dvh à travers la chaîne de
+     flex (html -> body -> #root -> ... -> ScrollView). Sur Samsung Internet
+     et Chrome Android réels, cette cascade peut échouer à transmettre une
+     hauteur bornée concrète (un des maillons se met à faire la taille de son
+     contenu au lieu d'être borné), et TOUT ce qui est en dessous grandit avec
+     lui : les ScrollView ne débordent plus jamais de leur conteneur et ne
+     scrollent donc pas (scrollHeight == clientHeight).
+     La preuve que ce mécanisme marche : les <Modal> de react-native-web
+     scrollent parfaitement sur ce même device, et leur implémentation
+     (node_modules/react-native-web/dist/exports/Modal/ModalContent.js) pose
+     position:fixed; top:0; right:0; bottom:0; left:0 sur leur conteneur —
+     un ancrage direct au vrai viewport du navigateur, qui court-circuite
+     complètement la cascade de hauteur des ancêtres. On applique exactement
+     le même ancrage à #root : une fois #root réellement borné au viewport,
+     tout ce qui est en dessous (StaffTabs/ParentTabs, content, tab-scroll)
+     est un flex:1 ordinaire dans une chaîne enfin bornée, et se comporte
+     comme prévu — plus besoin de 100dvh ni de @supports ici. */
+  #root {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    touch-action: pan-y;
   }
   input, textarea, select { font-size: 16px !important; }
 </style>

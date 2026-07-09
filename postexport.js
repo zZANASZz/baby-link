@@ -26,11 +26,28 @@ html = html.replace(
 // gère mal (contrairement à Safari/iOS, plus permissif), et qui capte le
 // geste tactile sans jamais le relayer à la ScrollView.
 
-// FIX #root : flex-direction n'est pas défini par défaut par Expo (le CSS
-// standard retombe alors sur "row", pas "column") + alignement de la hauteur
-// sur 100dvh (viewport dynamique) en plus de 100% pour rester cohérent avec
-// StaffTabs.js/ParentTabs.js qui utilisent déjà 100dvh, et éviter tout écart
-// avec la barre d'adresse Android qui apparaît/disparaît.
+// FIX #root — CAUSE RACINE du bug de scroll sur Android réel (confirmée par
+// diagnostic sur device : Samsung Internet + Chrome). #root ne doit PAS
+// dépendre d'une cascade height:100%/100dvh à travers la chaîne de flex
+// (html -> body -> #root -> ... -> ScrollView) : sur certains Android réels,
+// un maillon de cette cascade échoue à transmettre une hauteur bornée
+// concrète (la boîte se met à faire la taille de son contenu au lieu d'être
+// bornée à l'écran), et tout ce qui est en dessous grandit avec lui — les
+// ScrollView ne débordent alors plus jamais de leur conteneur et ne
+// scrollent donc pas (scrollHeight == clientHeight, vérifié par le
+// diagnostic).
+// Preuve que l'ancrage direct au viewport fonctionne sur ce device : les
+// <Modal> de react-native-web scrollent parfaitement, et leur implémentation
+// (node_modules/react-native-web/dist/exports/Modal/ModalContent.js) pose
+// position:fixed; top:0; right:0; bottom:0; left:0 sur leur conteneur — un
+// ancrage direct au vrai viewport du navigateur qui court-circuite
+// entièrement la cascade de hauteur des ancêtres. On applique exactement le
+// même ancrage à #root (seul point du DOM où c'est nécessaire, puisque tout
+// le reste de l'app est monté dessous) : une fois #root réellement borné,
+// StaffTabs.js/ParentTabs.js et tab-scroll redeviennent un flex:1 ordinaire
+// dans une chaîne enfin bornée. Plus besoin de 100dvh ni de @supports ici.
+// flex-direction n'est pas défini par défaut par Expo (le CSS standard
+// retombe alors sur "row", pas "column").
 // + touch-action:pan-y en filet de sécurité : autorise explicitement le pan
 // vertical au doigt dès la racine, pour lever toute ambiguïté de geste côté
 // Chrome/Blink (recommandation standard MDN/web.dev). Testé (Playwright,
@@ -42,14 +59,12 @@ html = html.replace(
   `#root {
         display: flex;
         flex-direction: column;
-        height: 100%;
-        flex: 1;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
         touch-action: pan-y;
-      }
-      @supports (height: 100dvh) {
-        html, body, #root {
-          height: 100dvh;
-        }
       }`
 );
 
