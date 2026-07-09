@@ -62,6 +62,32 @@ function runScrollDiagnostic() {
       scrollTest = { before, after, moved: after !== before };
     }
 
+    // Liste TOUS les éléments ayant un attribut id dans le DOM rendu, pour
+    // vérifier si nativeID="settings-scroll" a réellement atterri quelque part
+    // (et sur quel élément) plutôt que de le supposer.
+    const idElements = Array.from(document.querySelectorAll('[id]'))
+      .filter((el) => el.id !== 'scroll-debug-overlay' && !el.closest('#scroll-debug-overlay'));
+
+    const settingsScrollEl = document.getElementById('settings-scroll');
+    let settingsScrollReport = null;
+    if (settingsScrollEl) {
+      const cs = window.getComputedStyle(settingsScrollEl);
+      const before = settingsScrollEl.scrollTop;
+      settingsScrollEl.scrollTop = 300;
+      const after = settingsScrollEl.scrollTop;
+      settingsScrollReport = {
+        tag: settingsScrollEl.tagName,
+        scrollHeight: settingsScrollEl.scrollHeight,
+        clientHeight: settingsScrollEl.clientHeight,
+        overflow: cs.overflow,
+        overflowY: cs.overflowY,
+        height: cs.height,
+        before,
+        after,
+        moved: after !== before,
+      };
+    }
+
     function esc(s) {
       return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -87,6 +113,34 @@ function runScrollDiagnostic() {
     } else {
       lines.push('AUCUN élément débordant trouvé (scrollHeight <= clientHeight partout)');
     }
+    lines.push('');
+    lines.push('--- #settings-scroll (getElementById direct) ---');
+    if (settingsScrollReport) {
+      lines.push('TROUVÉ : <' + settingsScrollReport.tag + '>');
+      lines.push('  scrollH=' + settingsScrollReport.scrollHeight
+        + ' clientH=' + settingsScrollReport.clientHeight
+        + ' height=' + settingsScrollReport.height);
+      lines.push('  overflow=' + settingsScrollReport.overflow
+        + ' overflowY=' + settingsScrollReport.overflowY);
+      lines.push('  scrollTop avant: ' + settingsScrollReport.before
+        + '  après (scrollTop=300): ' + settingsScrollReport.after);
+      lines.push(settingsScrollReport.moved
+        ? '  => PEUT scroller par programme'
+        : '  => NE PEUT PAS scroller par programme');
+    } else {
+      lines.push('settings-scroll ABSENT DU DOM (getElementById renvoie null)');
+    }
+    lines.push('');
+    lines.push('--- TOUS LES ELEMENTS AVEC UN ATTRIBUT id (' + idElements.length + ') ---');
+    if (idElements.length === 0) {
+      lines.push('AUCUN élément avec un id dans tout le DOM.');
+    }
+    idElements.forEach((el, i) => {
+      const cs = window.getComputedStyle(el);
+      lines.push('[' + i + '] id="' + esc(el.id) + '" <' + el.tagName + '>'
+        + ' overflow=' + cs.overflow + ' overflowY=' + cs.overflowY
+        + ' height=' + cs.height);
+    });
     lines.push('');
     lines.push('--- TOUS LES ELEMENTS DEBORDANTS (top 20, triés par ampleur) ---');
     top.forEach((e, i) => {
