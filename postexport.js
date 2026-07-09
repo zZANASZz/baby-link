@@ -53,6 +53,27 @@ html = html.replace(
       }`
 );
 
+// FIX SCROLL ANDROID (Chrome + Samsung Internet) : voir le commentaire jumeau
+// dans web/index.html. Le overflowY:'auto' posé côté React sur le ScrollView
+// (via StyleSheet.create) ne se propage pas de façon fiable au DOM sur tous
+// les moteurs Android (confirmé KO sur Samsung Internet 30 / Chromium 143,
+// et pas fiable non plus sur Chrome 149 mobile) à cause de l'ordre
+// d'insertion du CSS atomique de react-native-web. On force donc la règle en
+// CSS brut avec !important, ciblée par id (nativeID="settings-scroll" côté
+// SettingsScreen.js -> id="settings-scroll" dans le DOM sur web).
+html = html.replace(
+  '</head>',
+  `  <style id="scroll-fix">
+    #settings-scroll {
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+    }
+  </style>
+</head>`
+);
+
 // Forcer le titre Baby-link
 html = html.replace(/<title>.*?<\/title>/, '<title>Baby-link</title>');
 

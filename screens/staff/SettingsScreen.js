@@ -97,7 +97,7 @@ export default function SettingsScreen({ navigation }) {
   );
 
   return (
-    <ScrollView style={s.container}>
+    <ScrollView style={s.container} nativeID="settings-scroll">
       <View style={s.header}>
         <Text style={s.title}>{t('settingsTitle')}</Text>
       </View>

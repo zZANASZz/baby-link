@@ -21,6 +21,21 @@
   }
   input, textarea, select { font-size: 16px !important; }
 </style>
+  <!-- FIX SCROLL ANDROID (Chrome + Samsung Internet) : le style overflowY:'auto'
+       posé côté React (StyleSheet.create) sur le ScrollView ne se propage pas
+       toujours de façon fiable au DOM via le CSS atomique de react-native-web,
+       en particulier sur Samsung Internet (Chromium plus ancien). On force donc
+       la règle en CSS brut, ciblée par id (nativeID -> id sur web), avec
+       !important pour battre n'importe quel ordre d'insertion des classes
+       atomiques. Écran de test : SettingsScreen (nativeID="settings-scroll"). -->
+  <style id="scroll-fix">
+    #settings-scroll {
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+    }
+  </style>
   </head>
   <body>
     <div id="root"></div>
