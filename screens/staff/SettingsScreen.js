@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert
+  TouchableOpacity, Alert, Platform
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../../lib/theme';
@@ -97,7 +97,7 @@ export default function SettingsScreen({ navigation }) {
   );
 
   return (
-    <ScrollView style={s.container} nativeID="settings-scroll">
+    <ScrollView style={s.container} nativeID="tab-scroll">
       <View style={s.header}>
         <Text style={s.title}>{t('settingsTitle')}</Text>
       </View>
@@ -198,7 +198,11 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const styles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : {}),
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
   header: { padding: 20, paddingTop: 60 },

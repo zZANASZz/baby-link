@@ -133,6 +133,7 @@ export default function DashboardScreen({ navigation }) {
   return (
     <ScrollView
       style={s.container}
+      nativeID="tab-scroll"
       refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       showsVerticalScrollIndicator={false}
     >

@@ -148,7 +148,11 @@ export default function PhotosScreen() {
             ))}
           </ScrollView>
 
-          <ScrollView refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}>
+          <ScrollView
+            style={s.scrollArea}
+            nativeID="tab-scroll"
+            refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+          >
             {photos.length === 0 ? (
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>📸</Text>
@@ -213,7 +217,15 @@ export default function PhotosScreen() {
 }
 
 const styles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
+  },
+  scrollArea: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : {}),
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },

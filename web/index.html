@@ -27,12 +27,20 @@
        en particulier sur Samsung Internet (Chromium plus ancien). On force donc
        la règle en CSS brut, ciblée par id (nativeID -> id sur web), avec
        !important pour battre n'importe quel ordre d'insertion des classes
-       atomiques. Écran de test : SettingsScreen (nativeID="settings-scroll"). -->
+       atomiques. id partagé "tab-scroll" : un seul écran d'onglet est monté à
+       la fois (StaffTabs/ParentTabs ne rendent que l'onglet actif), donc pas
+       de collision d'id.
+       IMPORTANT : flex-basis doit être 0, pas auto. flex-basis:auto (la valeur
+       par défaut du ScrollView de react-native-web quand seuls flexGrow/
+       flexShrink sont posés) laisse la boîte grandir à la taille de son
+       contenu au lieu d'être bornée par l'espace flex disponible, ce qui
+       neutralise overflow-y:auto (scrollHeight == clientHeight, rien ne peut
+       scroller). C'est la cause racine du bug diagnostiqué sur Settings. -->
   <style id="scroll-fix">
-    #settings-scroll {
+    #tab-scroll {
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch !important;
-      flex: 1 1 auto !important;
+      flex: 1 1 0 !important;
       min-height: 0 !important;
     }
   </style>

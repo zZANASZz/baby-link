@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert
+  TouchableOpacity, Alert, Platform
 } from 'react-native';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
@@ -69,7 +69,7 @@ export default function ParentSettingsScreen() {
   );
 
   return (
-    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={s.container} nativeID="tab-scroll" showsVerticalScrollIndicator={false}>
       <View style={s.header}>
         <Text style={s.title}>{t('settingsTitle')}</Text>
       </View>
@@ -125,7 +125,11 @@ export default function ParentSettingsScreen() {
 }
 
 const styles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : {}),
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
   header: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },

@@ -88,6 +88,8 @@ export default function MyChildrenScreen({ navigation }) {
       </View>
 
       <ScrollView
+        style={s.scrollArea}
+        nativeID="tab-scroll"
         refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
         showsVerticalScrollIndicator={false}
       >
@@ -158,7 +160,15 @@ export default function MyChildrenScreen({ navigation }) {
 }
 
 const styles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
+  },
+  scrollArea: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : {}),
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   header: {
     flexDirection: 'row', justifyContent: 'space-between',

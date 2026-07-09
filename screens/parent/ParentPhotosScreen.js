@@ -99,6 +99,8 @@ export default function ParentPhotosScreen() {
           </ScrollView>
 
           <ScrollView
+            style={s.scrollArea}
+            nativeID="tab-scroll"
             refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
             showsVerticalScrollIndicator={false}
           >
@@ -128,7 +130,15 @@ export default function ParentPhotosScreen() {
 }
 
 const styles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
+  },
+  scrollArea: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : {}),
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   loadingText: { color: theme.text },
   header: { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
