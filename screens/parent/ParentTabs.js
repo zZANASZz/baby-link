@@ -46,9 +46,9 @@ export default function ParentTabs({ navigation }) {
   };
 
   return (
-    <View style={s.container}>
+    <View style={s.container} nativeID="tabs-root">
       <SafeAreaView style={s.safeArea}>
-        <View style={s.navBar}>
+        <View style={s.navBar} nativeID="tabs-navbar">
           <View style={s.navInner}>
             {TABS.map(tab => {
               const isActive = activeTab === tab.key;

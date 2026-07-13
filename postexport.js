@@ -69,22 +69,50 @@ html = html.replace(
 );
 
 // FIX SCROLL ANDROID (Chrome + Samsung Internet) : voir le commentaire jumeau
-// dans web/index.html. Diagnostic sur device réel (Chrome, écran Settings) a
-// mesuré tous les ancêtres de #tab-scroll correctement bornés à la hauteur de
-// l'écran (784px), MAIS #tab-scroll lui-même à 911px (la taille de son
-// contenu) malgré flex:1 1 0 + min-height:0 -> scrollHeight == clientHeight
-// -> rien à scroller. La résolution de hauteur en flex/% n'est donc pas
-// fiable pour cet élément précis sur ce moteur. On applique le même remède
-// que pour #root : ancrer #tab-scroll en position:absolute (inset:0) sur son
-// parent direct #tab-content (qui, lui, est bien borné) -> #tab-scroll épouse
-// alors exactement la boîte du parent quelle que soit la fiabilité de la
-// cascade flex/%, comme les <Modal> react-native-web ancrées en
-// position:fixed sur le viewport.
+// dans web/index.html. Diagnostic sur device réel a montré que même une fois
+// #root correctement borné au viewport, #tab-content (son petit-fils, via
+// StaffTabs.js/ParentTabs.js) restait en position:relative -> il continue de
+// dépendre de la cascade flex (flex:1 sur un flex column) qui échoue sur cet
+// Android/Blink et grandit à la taille de son contenu (911px mesuré au lieu
+// des 784px de l'écran) au lieu de rester borné -> #tab-scroll (absolute sur
+// ce parent non borné) suit et scrollHeight == clientHeight -> rien ne
+// scrolle. Le fix précédent (#tab-scroll en absolute sur #tab-content) était
+// donc inutile tant que #tab-content lui-même n'était pas borné.
+// Remède : on applique le même ancrage direct qu'à #root, un niveau plus bas.
+// #tabs-root (le View racine de StaffTabs/ParentTabs, cf. nativeID ajouté
+// dans ces fichiers) est ancré en position:absolute inset:0 sur #root (déjà
+// borné) -> #tabs-root est donc borné à coup sûr, indépendamment de la
+// cascade flex. La barre de nav (#tabs-navbar) reste dans le flux normal
+// (position:static, hauteur naturelle) au-dessus de #tab-content. #tab-content
+// est ensuite ancré en position:absolute sous la nav bar : sa hauteur ne peut
+// plus être mal calculée puisqu'elle ne dépend plus de flex:1, seulement du
+// "top" = hauteur de la nav bar. Cette hauteur varie selon l'appareil/la
+// taille de police (accessibilité), donc au lieu de la coder en dur, un petit
+// script mesure #tabs-navbar au runtime (ResizeObserver + MutationObserver
+// pour attendre le montage React) et l'expose via la variable CSS
+// --tabs-navbar-height. #tab-scroll reste ancré en absolute/inset:0 sur
+// #tab-content, désormais réellement borné -> le scroll natif (déjà prouvé
+// fonctionnel via les <Modal> react-native-web en position:fixed sur ce même
+// device) s'active enfin.
 html = html.replace(
   '</head>',
   `  <style id="scroll-fix">
+    #tabs-root {
+      position: absolute !important;
+      top: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
     #tab-content {
-      position: relative !important;
+      position: absolute !important;
+      top: var(--tabs-navbar-height, 0px) !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      overflow: hidden !important;
     }
     #tab-scroll {
       position: absolute !important;
@@ -96,6 +124,42 @@ html = html.replace(
       -webkit-overflow-scrolling: touch !important;
     }
   </style>
+  <script id="scroll-fix-navbar-height">
+    (function () {
+      function applyHeight(navbar) {
+        document.documentElement.style.setProperty(
+          '--tabs-navbar-height',
+          navbar.offsetHeight + 'px'
+        );
+      }
+      var ro = null;
+      function tryObserve() {
+        var navbar = document.getElementById('tabs-navbar');
+        if (!navbar) return false;
+        applyHeight(navbar);
+        if (window.ResizeObserver) {
+          if (ro) ro.disconnect();
+          ro = new ResizeObserver(function () { applyHeight(navbar); });
+          ro.observe(navbar);
+        }
+        return true;
+      }
+      if (!tryObserve()) {
+        var mo = new MutationObserver(function () {
+          if (tryObserve()) mo.disconnect();
+        });
+        mo.observe(document.documentElement, { childList: true, subtree: true });
+      }
+      window.addEventListener('resize', function () {
+        var navbar = document.getElementById('tabs-navbar');
+        if (navbar) applyHeight(navbar);
+      });
+      window.addEventListener('orientationchange', function () {
+        var navbar = document.getElementById('tabs-navbar');
+        if (navbar) applyHeight(navbar);
+      });
+    })();
+  </script>
 </head>`
 );
 
