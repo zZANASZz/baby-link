@@ -94,9 +94,15 @@ html = html.replace(
 // #tab-content, désormais réellement borné -> le scroll natif (déjà prouvé
 // fonctionnel via les <Modal> react-native-web en position:fixed sur ce même
 // device) s'active enfin.
-html = html.replace(
-  '</head>',
-  `  <style id="scroll-fix">
+// Garde d'idempotence : depuis que public/index.html (repris tel quel par
+// `expo export`, cf. commentaire plus haut) contient déjà ce bloc en dur,
+// dist/index.html l'a normalement déjà. Sans ce garde, un `</head>` existe
+// toujours dans le HTML et le replace insérerait un 2e bloc scroll-fix en
+// doublon à chaque exécution.
+if (!html.includes('id="scroll-fix"')) {
+  html = html.replace(
+    '</head>',
+    `  <style id="scroll-fix">
     #tabs-root {
       position: absolute !important;
       top: 0 !important;
@@ -161,7 +167,8 @@ html = html.replace(
     })();
   </script>
 </head>`
-);
+  );
+}
 
 // Forcer le titre Baby-link
 html = html.replace(/<title>.*?<\/title>/, '<title>Baby-link</title>');

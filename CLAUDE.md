@@ -20,7 +20,11 @@ Web production build (no npm script for this — run manually):
 npx expo export -p web   # outputs to dist/
 node postexport.js       # patches dist/index.html (viewport meta, scroll, title, PWA meta tags)
 ```
-`postexport.js` must be re-run after every `expo export` — the patches it applies (iOS/Android web scroll fixes, `100dvh` viewport handling, forced title, manifest/apple-touch-icon links) are not part of the Expo template and get overwritten on each export. `web/index.html` is the source template Expo copies into `dist/`.
+`public/index.html` is the real HTML template — Metro (Expo's web bundler, SDK 49+) only auto-discovers a custom template at `public/index.html`, and uses it identically for `expo start --web` (dev server) **and** `expo export -p web` (which copies `public/` into `dist/` verbatim). All the scroll/viewport fixes live directly in that file, so they apply in dev too, not just in exported builds. Expo still separately auto-injects `theme-color`/`description` (from `app.json`'s `web` config) and a `favicon.ico` link near the end of `<head>` even with a custom template — don't duplicate those in `public/index.html`.
+
+`postexport.js` runs after `expo export` mostly as a historical/idempotent safety net now (every replace it does is guarded so it no-ops if `public/index.html` already has the content) — it is not required for the fixes to apply, but keep running it since it also force-sets the title.
+
+There is a `web/` directory left over from before this project used `public/index.html` — **Expo has never read it** (confirmed: `web/manifest.json` never made it into `dist/`). Don't edit `web/index.html` expecting it to affect anything; edit `public/index.html` instead.
 
 Requires a `.env` with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (gitignored except `.env` itself, which is committed locally — do not add secrets to other files).
 
@@ -50,7 +54,7 @@ Profiles carry `role` (`directrice`, `puericultrice`, `parent`) and `creche_id` 
 Screens/components define `const styles = (theme) => StyleSheet.create({...})` as a function of the current theme and call `const s = styles(theme)` inside the component body — this is how dark/light mode propagates to styles. Follow this pattern rather than static `StyleSheet.create` when a component needs theme-aware colors.
 
 ### Web/PWA quirks
-A meaningful share of recent commit history (see `git log`) is iOS/Android web scroll and viewport fixes (`100dvh` vs `100vh`, single-scroll-container layouts, `overflow` handling, long-press vs double-tap delete on touch web). When touching layout/scroll code on screens used on web, check `postexport.js` and `web/index.html` for the viewport/scroll CSS already in place before adding new fixes, and test on both native and web — regressions here have recurred multiple times.
+A meaningful share of recent commit history (see `git log`) is iOS/Android web scroll and viewport fixes (`100dvh` vs `100vh`, single-scroll-container layouts, `overflow` handling, long-press vs double-tap delete on touch web). When touching layout/scroll code on screens used on web, check `public/index.html` (and `postexport.js`, which mirrors/no-ops on top of it) for the viewport/scroll CSS already in place before adding new fixes, and test on both native and web — regressions here have recurred multiple times, partly because fixes were historically written into `web/index.html`, a file Expo never actually reads (see Commands section).
 
 ## Directory layout
 - `screens/auth/` — login/register/onboarding/create-or-join-nursery
@@ -58,4 +62,5 @@ A meaningful share of recent commit history (see `git log`) is iOS/Android web s
 - `screens/parent/` — parent screens, tab-routed via `ParentTabs.js`
 - `components/` — small shared components (`Avatar`, `ModalWithKeyboard` — a bottom-sheet modal with keyboard avoidance, used across create/edit forms)
 - `lib/` — `supabase.js` (client), `theme.js` (theme + i18n context), `useRealtime.js` (realtime hook)
-- `web/` — static PWA template (`index.html`, `manifest.json`) copied into `dist/` by `expo export` and then patched by `postexport.js`
+- `public/` — the real static PWA template (`index.html`, `manifest.json`, `apple-touch-icon.png`) — Metro copies this verbatim into `dist/` for both `expo start --web` and `expo export -p web`
+- `web/` — legacy, unused leftover from before the switch to `public/`; Expo never reads it (kept for now, do not edit expecting effect)
