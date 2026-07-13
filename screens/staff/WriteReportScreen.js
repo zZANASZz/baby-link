@@ -110,7 +110,7 @@ export default function WriteReportScreen({ route, navigation }) {
 
   const [humeur, setHumeur] = useState(null);
   const [humeurNote, setHumeurNote] = useState('');
-  const [sante, setSante] = useState('');
+  const [changes, setChanges] = useState('');
   const [notesGenerales, setNotesGenerales] = useState('');
   const [journalPrive, setJournalPrive] = useState('');
   const [brouillonId, setBrouillonId] = useState(null);
@@ -161,7 +161,7 @@ export default function WriteReportScreen({ route, navigation }) {
         setBrouillonId(data.id);
         setHumeur(data.humeur || null);
         setHumeurNote(data.humeur_note || '');
-        setSante(data.sante || '');
+        setChanges(data.changes || '');
         setNotesGenerales(data.commentaire || '');
         setJournalPrive(data.journal_prive || '');
         if (isBebe) {
@@ -209,7 +209,7 @@ export default function WriteReportScreen({ route, navigation }) {
 
     // Validation : empêcher publication si rien rempli
     if (publier) {
-      const champsBaseVides = !humeur && !humeurNote.trim() && !sante.trim() && !notesGenerales.trim();
+      const champsBaseVides = !humeur && !humeurNote.trim() && !changes.trim() && !notesGenerales.trim();
       const champsGrandeVides = !repasMidiQuantite && !repasGoûterQuantite && !siesteDebut.trim();
       const rienRempli = isBebe ? champsBaseVides : (champsBaseVides && champsGrandeVides);
       if (rienRempli) {
@@ -227,7 +227,7 @@ export default function WriteReportScreen({ route, navigation }) {
       const data = {
         enfant_id: enfant.id, auteur_id: user.id, date: today,
         humeur: humeur || null, humeur_note: humeurNote || null,
-        sante: sante || null, commentaire: notesGenerales || null,
+        changes: changes || null, commentaire: notesGenerales || null,
         journal_prive: journalPrive || null, brouillon: !publier,
       };
       if (isBebe) {
@@ -434,8 +434,8 @@ export default function WriteReportScreen({ route, navigation }) {
           </View>
         </SectionRapport>
 
-        <SectionRapport titre="🏥 Notes santé" theme={theme}>
-          <ChampTexte placeholder="Ex: Légère fièvre à 37.8°..." value={sante} onChange={setSante} theme={theme} />
+        <SectionRapport titre="🧷 Changes" theme={theme}>
+          <ChampTexte placeholder="Ex: 3 changes, une selle molle le matin..." value={changes} onChange={setChanges} theme={theme} />
         </SectionRapport>
 
         <SectionRapport titre="📝 Notes générales" theme={theme}>

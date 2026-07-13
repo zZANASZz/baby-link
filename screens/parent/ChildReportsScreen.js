@@ -166,11 +166,11 @@ export default function ChildReportsScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Santé */}
-        {rapport.sante && (
+        {/* Changes */}
+        {rapport.changes && (
           <View style={s.itemSection}>
-            <Text style={s.itemTitle}>{t('healthNotes')}</Text>
-            <Text style={s.itemNote}>{rapport.sante}</Text>
+            <Text style={s.itemTitle}>{t('changesNotes')}</Text>
+            <Text style={s.itemNote}>{rapport.changes}</Text>
           </View>
         )}
 
