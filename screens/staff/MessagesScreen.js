@@ -183,14 +183,13 @@ export default function MessagesScreen() {
   );
 
   return (
-    <View style={s.container}>
+    <View style={s.container} nativeID="tab-body">
       <View style={s.header}>
         <Text style={s.title}>{t('messages')}</Text>
       </View>
 
       <ScrollView
         style={s.scrollArea}
-        nativeID="tab-scroll"
         refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
         <View style={s.menuSection}>

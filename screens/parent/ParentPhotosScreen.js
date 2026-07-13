@@ -66,7 +66,7 @@ export default function ParentPhotosScreen() {
   );
 
   return (
-    <View style={s.container}>
+    <View style={s.container} nativeID="tab-body">
       <View style={s.header}>
         <Text style={s.title}>{t('photosTitle')}</Text>
       </View>
@@ -100,7 +100,6 @@ export default function ParentPhotosScreen() {
 
           <ScrollView
             style={s.scrollArea}
-            nativeID="tab-scroll"
             refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
             showsVerticalScrollIndicator={false}
           >

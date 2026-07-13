@@ -99,6 +99,23 @@
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch !important;
     }
+    /* Écrans avec un header fixe (bouton "+ Ajouter"...) au-dessus de leur
+       ScrollView : #tab-scroll ne peut pas s'appliquer à la ScrollView elle-
+       même dans ce cas (son ancêtre positionné le plus proche serait alors le
+       View conteneur de l'écran, pas #tab-content -> le inset:0 recouvrirait
+       le header au lieu de se limiter à la zone sous celui-ci). #tab-body
+       reprend exactement le même ancrage borné que #tab-content, mais un
+       niveau plus bas : sur le View conteneur de l'écran (header + contenu).
+       Une fois ce conteneur borné, le header (flux normal) et la ScrollView
+       (flex:1 ordinaire, plus besoin d'absolute) se comportent normalement. */
+    #tab-body {
+      position: absolute !important;
+      top: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      overflow: hidden !important;
+    }
   </style>
   <script id="scroll-fix-navbar-height">
     (function () {

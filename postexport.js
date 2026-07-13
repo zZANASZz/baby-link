@@ -129,6 +129,14 @@ if (!html.includes('id="scroll-fix"')) {
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch !important;
     }
+    #tab-body {
+      position: absolute !important;
+      top: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      overflow: hidden !important;
+    }
   </style>
   <script id="scroll-fix-navbar-height">
     (function () {

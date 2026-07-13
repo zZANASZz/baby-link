@@ -132,7 +132,7 @@ export default function ChildrenScreen({ navigation }) {
   if (loading) return <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>;
 
   return (
-    <View style={s.container}>
+    <View style={s.container} nativeID="tab-body">
       <View style={s.header}>
         <Text style={s.title}>{t('children')}</Text>
         <TouchableOpacity style={s.addBtn} onPress={() => setModalAdd(true)}>
@@ -163,7 +163,6 @@ export default function ChildrenScreen({ navigation }) {
 
       <ScrollView
         style={s.scrollArea}
-        nativeID="tab-scroll"
         refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
         showsVerticalScrollIndicator={false}
       >

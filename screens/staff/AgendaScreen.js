@@ -98,7 +98,7 @@ export default function AgendaScreen() {
   if (loading) return <View style={s.center}><Text style={s.loadingText}>Chargement...</Text></View>;
 
   return (
-    <View style={s.container}>
+    <View style={s.container} nativeID="tab-body">
       <View style={s.header}>
         <Text style={s.title}>Agenda</Text>
         {isDirectrice && (
@@ -110,7 +110,6 @@ export default function AgendaScreen() {
 
       <ScrollView
         style={s.scrollArea}
-        nativeID="tab-scroll"
         refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
         showsVerticalScrollIndicator={false}
       >

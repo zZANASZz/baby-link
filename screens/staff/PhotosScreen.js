@@ -127,7 +127,7 @@ export default function PhotosScreen() {
   if (loading) return <View style={s.center}><Text style={s.loadingText}>{t('loading')}</Text></View>;
 
   return (
-    <View style={s.container}>
+    <View style={s.container} nativeID="tab-body">
       <View style={s.header}>
         <Text style={s.title}>{t('photosTitle')}</Text>
         <TouchableOpacity style={s.uploadBtn} onPress={() => setModalSource(true)} disabled={uploading || !selectedEnfant}>
@@ -150,7 +150,6 @@ export default function PhotosScreen() {
 
           <ScrollView
             style={s.scrollArea}
-            nativeID="tab-scroll"
             refreshControl={Platform.OS === 'web' ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
           >
             {photos.length === 0 ? (
