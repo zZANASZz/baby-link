@@ -434,7 +434,7 @@ export default function WriteReportScreen({ route, navigation }) {
           </View>
         </SectionRapport>
 
-        <SectionRapport titre="🧷 Changes" theme={theme}>
+        <SectionRapport titre="🚼 Changes" theme={theme}>
           <ChampTexte placeholder="Ex: 3 changes, une selle molle le matin..." value={changes} onChange={setChanges} theme={theme} />
         </SectionRapport>
 
