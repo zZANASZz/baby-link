@@ -45,27 +45,30 @@
   }
   input, textarea, select { font-size: 16px !important; }
 </style>
-  <!-- FIX SCROLL ANDROID (Chrome + Samsung Internet) : le style overflowY:'auto'
-       posé côté React (StyleSheet.create) sur le ScrollView ne se propage pas
-       toujours de façon fiable au DOM via le CSS atomique de react-native-web,
-       en particulier sur Samsung Internet (Chromium plus ancien). On force donc
-       la règle en CSS brut, ciblée par id (nativeID -> id sur web), avec
-       !important pour battre n'importe quel ordre d'insertion des classes
-       atomiques. id partagé "tab-scroll" : un seul écran d'onglet est monté à
-       la fois (StaffTabs/ParentTabs ne rendent que l'onglet actif), donc pas
-       de collision d'id.
-       IMPORTANT : flex-basis doit être 0, pas auto. flex-basis:auto (la valeur
-       par défaut du ScrollView de react-native-web quand seuls flexGrow/
-       flexShrink sont posés) laisse la boîte grandir à la taille de son
-       contenu au lieu d'être bornée par l'espace flex disponible, ce qui
-       neutralise overflow-y:auto (scrollHeight == clientHeight, rien ne peut
-       scroller). C'est la cause racine du bug diagnostiqué sur Settings. -->
+  <!-- FIX SCROLL ANDROID (Chrome + Samsung Internet) : diagnostic sur device
+       réel (Chrome, écran Settings) a mesuré tous les ancêtres de #tab-scroll
+       correctement bornés à la hauteur de l'écran (784px), MAIS #tab-scroll
+       lui-même à 911px (la taille de son contenu) malgré flex:1 1 0 +
+       min-height:0 -> scrollHeight == clientHeight -> rien à scroller. La
+       résolution de hauteur en flex/% n'est donc pas fiable pour cet élément
+       précis sur ce moteur. On applique le même remède que pour #root :
+       ancrer #tab-scroll en position:absolute (inset:0) sur son parent direct
+       #tab-content (qui, lui, est bien borné) -> #tab-scroll épouse alors
+       exactement la boîte du parent quelle que soit la fiabilité de la
+       cascade flex/%, comme les <Modal> react-native-web ancrées en
+       position:fixed sur le viewport. -->
   <style id="scroll-fix">
+    #tab-content {
+      position: relative !important;
+    }
     #tab-scroll {
+      position: absolute !important;
+      top: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch !important;
-      flex: 1 1 0 !important;
-      min-height: 0 !important;
     }
   </style>
   </head>

@@ -69,23 +69,31 @@ html = html.replace(
 );
 
 // FIX SCROLL ANDROID (Chrome + Samsung Internet) : voir le commentaire jumeau
-// dans web/index.html. Le overflowY:'auto' posé côté React sur le ScrollView
-// (via StyleSheet.create) ne se propage pas de façon fiable au DOM sur tous
-// les moteurs Android (confirmé KO sur Samsung Internet 30 / Chromium 143,
-// et pas fiable non plus sur Chrome 149 mobile) à cause de l'ordre
-// d'insertion du CSS atomique de react-native-web. On force donc la règle en
-// CSS brut avec !important, ciblée par id partagé "tab-scroll" (un seul écran
-// d'onglet monté à la fois dans StaffTabs/ParentTabs -> pas de collision).
-// flex-basis doit être 0 (pas auto) : sinon la boîte grandit à la taille de
-// son contenu au lieu d'être bornée, ce qui neutralise overflow-y:auto.
+// dans web/index.html. Diagnostic sur device réel (Chrome, écran Settings) a
+// mesuré tous les ancêtres de #tab-scroll correctement bornés à la hauteur de
+// l'écran (784px), MAIS #tab-scroll lui-même à 911px (la taille de son
+// contenu) malgré flex:1 1 0 + min-height:0 -> scrollHeight == clientHeight
+// -> rien à scroller. La résolution de hauteur en flex/% n'est donc pas
+// fiable pour cet élément précis sur ce moteur. On applique le même remède
+// que pour #root : ancrer #tab-scroll en position:absolute (inset:0) sur son
+// parent direct #tab-content (qui, lui, est bien borné) -> #tab-scroll épouse
+// alors exactement la boîte du parent quelle que soit la fiabilité de la
+// cascade flex/%, comme les <Modal> react-native-web ancrées en
+// position:fixed sur le viewport.
 html = html.replace(
   '</head>',
   `  <style id="scroll-fix">
+    #tab-content {
+      position: relative !important;
+    }
     #tab-scroll {
+      position: absolute !important;
+      top: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch !important;
-      flex: 1 1 0 !important;
-      min-height: 0 !important;
     }
   </style>
 </head>`

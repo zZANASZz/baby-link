@@ -67,7 +67,7 @@ export default function ParentTabs({ navigation }) {
         </View>
       </SafeAreaView>
 
-      <View style={s.content}>
+      <View style={s.content} nativeID="tab-content">
         <ActiveScreen navigation={navObj} />
       </View>
     </View>
@@ -119,6 +119,6 @@ const styles = (theme) => StyleSheet.create({
   },
   content: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' } : {}),
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' } : {}),
   },
 });
