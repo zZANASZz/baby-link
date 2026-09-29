@@ -134,7 +134,7 @@ export default function CreateNurseryScreen({ navigation }) {
         theme={theme}
       />
 
-      <ScrollView contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView nativeID="create-nursery-scroll" contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
 
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
           <Text style={s.backText}>{t('back')}</Text>

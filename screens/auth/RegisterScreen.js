@@ -46,7 +46,7 @@ export default function RegisterScreen({ navigation }) {
       style={s.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView nativeID="register-scroll" contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
 
         <View style={s.logoContainer}>
           <View style={s.logoBox}>

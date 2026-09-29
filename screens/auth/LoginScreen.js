@@ -31,7 +31,7 @@ export default function LoginScreen({ navigation }) {
       style={s.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView nativeID="login-scroll" contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
 
         {/* Logo */}
         <View style={s.logoContainer}>
