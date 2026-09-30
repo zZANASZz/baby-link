@@ -128,7 +128,8 @@
       left: 0 !important;
       overflow: hidden !important;
     }
-  </style>
+    #report-root { position: absolute !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; overflow: hidden !important; }
+    #report-scroll { position: absolute !important; top: var(--report-header-height, 0px) !important; right: 0 !important; bottom: 0 !important; left: 0 !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; }  </style>
   <script id="scroll-fix-navbar-height">
     (function () {
       function applyHeight(navbar) {
@@ -164,7 +165,20 @@
         if (navbar) applyHeight(navbar);
       });
     })();
-  </script>
+      (function () {
+        function observeReport() {
+          var header = document.getElementById('report-header');
+          if (!header) return false;
+          var apply = function () { document.documentElement.style.setProperty('--report-header-height', header.offsetHeight + 'px'); };
+          apply();
+          if (window.ResizeObserver) { var roReport = new ResizeObserver(apply); roReport.observe(header); }
+          return true;
+        }
+        if (!observeReport()) {
+          var moReport = new MutationObserver(function () { if (observeReport()) moReport.disconnect(); });
+          moReport.observe(document.documentElement, { childList: true, subtree: true });
+        }
+      })();  </script>
   </head>
   <body>
     <div id="root"></div>

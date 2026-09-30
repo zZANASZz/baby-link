@@ -128,6 +128,8 @@ export default function WriteReportScreen({ route, navigation }) {
   const [siesteDebut, setSiesteDebut] = useState('');
   const [siesteFin, setSiesteFin] = useState('');
   const [siesteNote, setSiesteNote] = useState('');
+  const [heureArrivee, setHeureArrivee] = useState('');
+  const [heureSortie, setHeureSortie] = useState('');
   const [repas, setRepas] = useState([{ id: 1, heure: '', type: 'biberon', quantite: '', note: '' }]);
   const [siestes, setSiestes] = useState([{ id: 1, debut: '', fin: '', note: '' }]);
 
@@ -156,7 +158,7 @@ export default function WriteReportScreen({ route, navigation }) {
     try {
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase.from('rapports').select('*')
-        .eq('enfant_id', enfant.id).eq('date', today).maybeSingle();
+        .eq('enfant_id', enfant.id).eq('date', today).eq('brouillon', true).maybeSingle();
       if (data) {
         setBrouillonId(data.id);
         setHumeur(data.humeur || null);
@@ -164,6 +166,8 @@ export default function WriteReportScreen({ route, navigation }) {
         setChanges(data.changes || '');
         setNotesGenerales(data.commentaire || '');
         setJournalPrive(data.journal_prive || '');
+        setHeureArrivee(data.heure_arrivee || '');
+        setHeureSortie(data.heure_sortie || '');
         if (isBebe) {
           if (data.repas_bebe) setRepas(JSON.parse(data.repas_bebe));
           if (data.siestes_bebe) setSiestes(JSON.parse(data.siestes_bebe));
@@ -229,6 +233,8 @@ export default function WriteReportScreen({ route, navigation }) {
         humeur: humeur || null, humeur_note: humeurNote || null,
         changes: changes || null, commentaire: notesGenerales || null,
         journal_prive: journalPrive || null, brouillon: !publier,
+        heure_arrivee: heureArrivee || null,
+        heure_sortie: heureSortie || null,
       };
       if (isBebe) {
         data.repas_bebe = JSON.stringify(repas);
@@ -292,8 +298,8 @@ export default function WriteReportScreen({ route, navigation }) {
   );
 
   return (
-    <View style={s.container}>
-      <View style={s.header}>
+    <View style={s.container} nativeID="report-root">
+      <View style={s.header} nativeID="report-header">
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backText}>← Retour</Text>
         </TouchableOpacity>
@@ -312,13 +318,42 @@ export default function WriteReportScreen({ route, navigation }) {
       </View>
 
       <ScrollView
-        style={s.scroll}
+        style={s.scroll} nativeID="report-scroll"
         contentContainerStyle={s.inner}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         bounces={false}
       >
         <Text style={s.titre}>{t('dailyReport')}</Text>
+
+        <SectionRapport titre="🕒 Horaires" theme={theme}>
+          <View style={s.siesteRow}>
+            <View style={s.siesteField}>
+              <Text style={s.siesteLabel}>Heure d'arrivée</Text>
+              <TextInput
+                style={s.siesteInput}
+                placeholder="08:15"
+                placeholderTextColor={theme.placeholder}
+                value={heureArrivee}
+                onChangeText={setHeureArrivee}
+                keyboardType="numbers-and-punctuation"
+                {...(Platform.OS === 'web' ? { type: 'time' } : {})}
+              />
+            </View>
+            <View style={s.siesteField}>
+              <Text style={s.siesteLabel}>Heure de sortie</Text>
+              <TextInput
+                style={s.siesteInput}
+                placeholder="17:30"
+                placeholderTextColor={theme.placeholder}
+                value={heureSortie}
+                onChangeText={setHeureSortie}
+                keyboardType="numbers-and-punctuation"
+                {...(Platform.OS === 'web' ? { type: 'time' } : {})}
+              />
+            </View>
+          </View>
+        </SectionRapport>
 
         {brouillonId && (
           <View style={s.brouillonBanner}>
@@ -500,7 +535,7 @@ const styles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
-    ...(Platform.OS === 'web' ? { height: '100vh', overflow: 'hidden' } : {}),
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflow: 'hidden' } : {}),
   },
   scroll: {
     flex: 1,

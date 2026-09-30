@@ -25,6 +25,7 @@ export default function ChildrenScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [presences, setPresences] = useState({});
   const [rapportsDuJour, setRapportsDuJour] = useState({});
+  const [changingSectionId, setChangingSectionId] = useState(null);
 
   useEffect(() => { loadData(); }, []);
   useRealtime(['enfants', 'presences_journalieres', 'rapports'], loadData);
@@ -48,7 +49,11 @@ export default function ChildrenScreen({ navigation }) {
         setPresences(presMap);
         const { data: rapData } = await supabase.from('rapports').select('enfant_id, brouillon').eq('date', today).in('enfant_id', (enf || []).map(e => e.id));
         const rapMap = {};
-        (rapData || []).forEach(r => { rapMap[r.enfant_id] = r.brouillon ? 'brouillon' : 'publie'; });
+        (rapData || []).forEach(r => {
+          if (!rapMap[r.enfant_id] || !r.brouillon) {
+            rapMap[r.enfant_id] = r.brouillon ? 'brouillon' : 'publie';
+          }
+        });
         setRapportsDuJour(rapMap);
       }
     } catch (e) { console.log(e); }
@@ -107,6 +112,73 @@ export default function ChildrenScreen({ navigation }) {
     setAdding(false);
   }
 
+  async function confirmerChangementSection(enfant) {
+    const sectionActuelle = enfant.section === 'grande' ? 'grande' : 'petite';
+    const nouvelleSection = sectionActuelle === 'grande' ? 'petite' : 'grande';
+    const libelleSection = nouvelleSection === 'grande' ? t('grandeSection').toLowerCase() : t('petiteSection').toLowerCase();
+    const titre = 'Modifier la section';
+    const message = `Passer ${enfant.prenom} en ${libelleSection} ?`;
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${titre}\n\n${message}`)) {
+        await changerSectionEnfant(enfant, nouvelleSection);
+      }
+      return;
+    }
+
+    Alert.alert(titre, message, [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('confirm'), onPress: () => changerSectionEnfant(enfant, nouvelleSection) },
+    ]);
+  }
+
+  function afficherResultatChangementSection(titre, message) {
+    if (Platform.OS === 'web') {
+      window.alert(`${titre}\n\n${message}`);
+      return;
+    }
+    Alert.alert(titre, message);
+  }
+
+  async function changerSectionEnfant(enfant, nouvelleSection) {
+    const sectionActuelle = enfant.section === 'grande' ? 'grande' : 'petite';
+    if (sectionActuelle === nouvelleSection || changingSectionId === enfant.id) return;
+
+    setChangingSectionId(enfant.id);
+    try {
+      const { data, error } = await supabase
+        .from('enfants')
+        .update({ section: nouvelleSection })
+        .eq('id', enfant.id)
+        .select('*')
+        .single();
+
+      if (error) {
+        afficherResultatChangementSection(t('error'), `La section n’a pas été modifiée : ${error.message}`);
+        return;
+      }
+
+      if (!data) {
+        afficherResultatChangementSection(t('error'), 'Aucun enfant correspondant n’a été modifié.');
+        return;
+      }
+
+      if (data.id !== enfant.id || data.section !== nouvelleSection) {
+        afficherResultatChangementSection(t('error'), 'La réponse du serveur ne confirme pas la modification attendue.');
+        return;
+      }
+
+      setEnfants(prev => prev.map(item => (
+        item.id === enfant.id ? { ...item, ...data, section: nouvelleSection } : item
+      )));
+      afficherResultatChangementSection(t('success'), `${enfant.prenom} est maintenant en ${nouvelleSection === 'grande' ? t('grandeSection').toLowerCase() : t('petiteSection').toLowerCase()}.`);
+    } catch (e) {
+      afficherResultatChangementSection(t('error'), e.message || 'La section n’a pas pu être modifiée.');
+    } finally {
+      setChangingSectionId(null);
+    }
+  }
+
   async function supprimerEnfant(enfant) {
     await supabase.from('rapports').delete().eq('enfant_id', enfant.id);
     await supabase.from('enfants_parents').delete().eq('enfant_id', enfant.id);
@@ -126,7 +198,7 @@ export default function ChildrenScreen({ navigation }) {
   const grandeSection = enfantsFiltres.filter(e => e.section === 'grande');
   const totalPresents = Object.values(presences).filter(v => v === true).length;
   const totalAbsents = Object.values(presences).filter(v => v === false).length;
-  const totalARapporter = enfants.filter(e => !rapportsDuJour[e.id]).length;
+  const totalARapporter = enfants.filter(e => presences[e.id] === true && rapportsDuJour[e.id] !== 'publie').length;
   const s = styles(theme);
 
   if (loading) return <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>;
@@ -176,6 +248,8 @@ export default function ChildrenScreen({ navigation }) {
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
               onSupprimerEnfant={supprimerEnfant}
+              onChangerSection={confirmerChangementSection}
+              changingSectionId={changingSectionId}
               onTogglePresence={togglePresence} theme={theme} t={t}
             />
             <SectionBlock
@@ -184,6 +258,8 @@ export default function ChildrenScreen({ navigation }) {
               presences={presences} rapportsDuJour={rapportsDuJour}
               onPressEnfant={(enfant) => navigation.navigate('WriteReport', { enfant })}
               onSupprimerEnfant={supprimerEnfant}
+              onChangerSection={confirmerChangementSection}
+              changingSectionId={changingSectionId}
               onTogglePresence={togglePresence} theme={theme} t={t}
             />
           </View>
@@ -213,8 +289,7 @@ export default function ChildrenScreen({ navigation }) {
   );
 }
 
-function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onSupprimerEnfant, onTogglePresence, theme, t }) {
-  if (enfants.length === 0) return null;
+function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText, presences, rapportsDuJour, onPressEnfant, onSupprimerEnfant, onChangerSection, changingSectionId, onTogglePresence, theme, t }) {
   const [confirmingId, setConfirmingId] = useState(null);
   const presents = enfants.filter(e => presences[e.id] === true).length;
   const s = styles(theme);
@@ -226,6 +301,8 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
       return () => clearTimeout(timer);
     }
   }, [confirmingId]);
+
+  if (enfants.length === 0) return null;
 
   return (
     <View style={s.sectionBlock}>
@@ -246,16 +323,31 @@ function SectionBlock({ titre, sousTitre, enfants, couleurPill, couleurPillText,
         const isPresent = presences[enfant.id];
         const rapportStatus = rapportsDuJour[enfant.id];
         const isConfirming = confirmingId === enfant.id;
+        const isChangingSection = changingSectionId === enfant.id;
+        const targetSectionLabel = enfant.section === 'grande' ? t('petiteSection') : t('grandeSection');
 
         return (
           <View key={enfant.id} style={[s.enfantRow, index === 0 && s.enfantRowFirst]}>
-            <TouchableOpacity style={s.enfantLeft} onPress={() => onPressEnfant(enfant)} activeOpacity={0.7}>
+            <View style={s.enfantLeft}>
               <Avatar enfant={enfant} size={40} />
               <View style={s.enfantInfo}>
-                <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom || ''}</Text>
-                <Text style={s.enfantCode}>#{enfant.code_enfant}</Text>
+                <TouchableOpacity onPress={() => onPressEnfant(enfant)} activeOpacity={0.7}>
+                  <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom || ''}</Text>
+                  <Text style={s.enfantCode}>#{enfant.code_enfant}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.sectionChangeBtn, isChangingSection && s.sectionChangeBtnDisabled]}
+                  onPress={() => onChangerSection(enfant)}
+                  disabled={isChangingSection}
+                >
+                  {isChangingSection ? (
+                    <ActivityIndicator color={theme.primary} size="small" />
+                  ) : (
+                    <Text style={s.sectionChangeBtnText}>Passer en {targetSectionLabel.toLowerCase()}</Text>
+                  )}
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
 
             <View style={s.enfantRight}>
               {rapportStatus === 'publie' && <View style={[s.badge, { backgroundColor: theme.successLight }]}><Text style={[s.badgeText, { color: theme.success }]}>✓</Text></View>}
@@ -337,6 +429,20 @@ const styles = (theme) => StyleSheet.create({
   enfantInfo: { flex: 1, minWidth: 0 },
   enfantNom: { fontSize: 14, fontWeight: '600', color: theme.text },
   enfantCode: { fontSize: 11, color: theme.primary, marginTop: 2 },
+  sectionChangeBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: theme.primarySoft,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 6,
+    minHeight: 24,
+    justifyContent: 'center',
+  },
+  sectionChangeBtnDisabled: { opacity: 0.65 },
+  sectionChangeBtnText: { color: theme.primary, fontSize: 10, fontWeight: '700' },
   enfantRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 10, fontWeight: '600' },

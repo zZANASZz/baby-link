@@ -15,6 +15,8 @@ export default function DashboardScreen({ navigation }) {
   const [rapportsDates, setRapportsDates] = useState({});
   const [totalEnfants, setTotalEnfants] = useState(0);
   const [enfantsARapporter, setEnfantsARapporter] = useState([]);
+  const [enfantsPresents, setEnfantsPresents] = useState([]);
+  const [horairesDuJour, setHorairesDuJour] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -55,7 +57,17 @@ export default function DashboardScreen({ navigation }) {
         const nbAbsents = nbEnfants - nbPresents;
 
         const rapportesIds = rapportsDuJour.map(r => r.enfant_id);
-        const nonRaportes = (enfants || []).filter(e => !rapportesIds.includes(e.id));
+        const presentsIds = new Set((presData || []).filter(p => p.present === true).map(p => p.enfant_id));
+        setEnfantsPresents((enfants || []).filter(e => presentsIds.has(e.id)));
+        const horaires = {};
+        rapportsDuJour.forEach(r => {
+          horaires[r.enfant_id] = {
+            arrivee: r.heure_arrivee || null,
+            sortie: r.heure_sortie || null,
+          };
+        });
+        setHorairesDuJour(horaires);
+        const nonRaportes = (enfants || []).filter(e => presentsIds.has(e.id) && !rapportesIds.includes(e.id));
         setEnfantsARapporter(nonRaportes);
 
         if (enfantIds.length > 0) {
@@ -222,6 +234,30 @@ export default function DashboardScreen({ navigation }) {
             >
               <Text style={s.voirPlusText}>+{enfantsARapporter.length - 4} autres enfants →</Text>
             </TouchableOpacity>
+          )}
+
+          {enfantsPresents.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Horaires du jour</Text>
+              {enfantsPresents.map((enfant, index) => {
+                const horaires = horairesDuJour[enfant.id] || {};
+                return (
+                  <View key={enfant.id} style={[s.enfantRow, index === 0 && { borderTopWidth: 0 }]}>
+                    <View style={[s.avatar, { backgroundColor: theme.primarySoft }]}>
+                      <Text style={[s.avatarText, { color: theme.primary }]}>
+                        {enfant.prenom?.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
+                      <Text style={s.enfantSection}>
+                        Arrivée {horaires.arrivee || '—'} · Sortie {horaires.sortie || '—'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           )}
         </View>
       )}
