@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, TextInput, Alert, ActivityIndicator, Platform
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 
@@ -105,14 +106,21 @@ function SectionRapport({ titre, children, theme }) {
 
 export default function WriteReportScreen({ route, navigation }) {
   const { theme, t } = useTheme();
+  const insets = useSafeAreaInsets();
   const { enfant } = route.params;
   const isBebe = enfant.section === 'petite' || !enfant.section;
+
+  function getLocalDateKey(date = new Date()) {
+    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    return localDate.toISOString().split('T')[0];
+  }
 
   const [humeur, setHumeur] = useState(null);
   const [humeurNote, setHumeurNote] = useState('');
   const [changes, setChanges] = useState('');
   const [notesGenerales, setNotesGenerales] = useState('');
   const [journalPrive, setJournalPrive] = useState('');
+  const [reportId, setReportId] = useState(null);
   const [brouillonId, setBrouillonId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingBrouillon, setLoadingBrouillon] = useState(false);
@@ -156,30 +164,47 @@ export default function WriteReportScreen({ route, navigation }) {
 
   async function loadBrouillon() {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateKey();
       const { data } = await supabase.from('rapports').select('*')
-        .eq('enfant_id', enfant.id).eq('date', today).eq('brouillon', true).maybeSingle();
-      if (data) {
-        setBrouillonId(data.id);
-        setHumeur(data.humeur || null);
-        setHumeurNote(data.humeur_note || '');
-        setChanges(data.changes || '');
-        setNotesGenerales(data.commentaire || '');
-        setJournalPrive(data.journal_prive || '');
-        setHeureArrivee(data.heure_arrivee || '');
-        setHeureSortie(data.heure_sortie || '');
+        .eq('enfant_id', enfant.id)
+        .eq('date', today)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const existingReport = data?.[0] || null;
+      if (existingReport) {
+        setReportId(existingReport.id);
+        setBrouillonId(existingReport.brouillon ? existingReport.id : null);
+        setHumeur(existingReport.humeur || null);
+        setHumeurNote(existingReport.humeur_note || '');
+        setChanges(existingReport.changes || '');
+        setNotesGenerales(existingReport.commentaire || '');
+        setJournalPrive(existingReport.journal_prive || '');
+        setHeureArrivee(existingReport.heure_arrivee || '');
+        setHeureSortie(existingReport.heure_sortie || '');
         if (isBebe) {
-          if (data.repas_bebe) setRepas(JSON.parse(data.repas_bebe));
-          if (data.siestes_bebe) setSiestes(JSON.parse(data.siestes_bebe));
+          if (existingReport.repas_bebe) {
+            try { setRepas(JSON.parse(existingReport.repas_bebe)); } catch { setRepas([{ id: 1, heure: '', type: 'biberon', quantite: '', note: '' }]); }
+          } else {
+            setRepas([{ id: 1, heure: '', type: 'biberon', quantite: '', note: '' }]);
+          }
+          if (existingReport.siestes_bebe) {
+            try { setSiestes(JSON.parse(existingReport.siestes_bebe)); } catch { setSiestes([{ id: 1, debut: '', fin: '', note: '' }]); }
+          } else {
+            setSiestes([{ id: 1, debut: '', fin: '', note: '' }]);
+          }
         } else {
-          setRepasMidiQuantite(data.repas_midi_stars ? ({ 1: 'rien', 2: 'peu', 3: 'moitie', 4: 'bien', 5: 'tout' }[data.repas_midi_stars] || null) : null);
-          setRepasMidiNote(data.repas_midi_note || '');
-          setRepasGoûterQuantite(data.repas_aprem_stars ? ({ 1: 'rien', 2: 'peu', 3: 'moitie', 4: 'bien', 5: 'tout' }[data.repas_aprem_stars] || null) : null);
-          setRepasGoûterNote(data.repas_aprem_note || '');
-          setSiesteDebut(data.sieste_debut || '');
-          setSiesteFin(data.sieste_fin || '');
-          setSiesteNote(data.sommeil || '');
+          setRepasMidiQuantite(existingReport.repas_midi_stars ? ({ 1: 'rien', 2: 'peu', 3: 'moitie', 4: 'bien', 5: 'tout' }[existingReport.repas_midi_stars] || null) : null);
+          setRepasMidiNote(existingReport.repas_midi_note || '');
+          setRepasGoûterQuantite(existingReport.repas_aprem_stars ? ({ 1: 'rien', 2: 'peu', 3: 'moitie', 4: 'bien', 5: 'tout' }[existingReport.repas_aprem_stars] || null) : null);
+          setRepasGoûterNote(existingReport.repas_aprem_note || '');
+          setSiesteDebut(existingReport.sieste_debut || '');
+          setSiesteFin(existingReport.sieste_fin || '');
+          setSiesteNote(existingReport.sommeil || '');
         }
+      } else {
+        setReportId(null);
+        setBrouillonId(null);
       }
     } catch (e) { console.log(e); }
     setLoadingData(false);
@@ -227,7 +252,7 @@ export default function WriteReportScreen({ route, navigation }) {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateKey();
       const data = {
         enfant_id: enfant.id, auteur_id: user.id, date: today,
         humeur: humeur || null, humeur_note: humeurNote || null,
@@ -255,13 +280,17 @@ export default function WriteReportScreen({ route, navigation }) {
       }
 
       let error;
-      if (brouillonId) {
-        const { error: e } = await supabase.from('rapports').update(data).eq('id', brouillonId);
+      const targetReportId = reportId || brouillonId;
+      if (targetReportId) {
+        const { error: e } = await supabase.from('rapports').update(data).eq('id', targetReportId);
         error = e;
       } else {
         const { data: nr, error: e } = await supabase.from('rapports').insert(data).select().single();
         error = e;
-        if (nr) setBrouillonId(nr.id);
+        if (nr) {
+          setReportId(nr.id);
+          setBrouillonId(nr.brouillon ? nr.id : null);
+        }
       }
 
       if (error) {
@@ -272,8 +301,10 @@ export default function WriteReportScreen({ route, navigation }) {
       await saveStock();
 
       if (publier) {
+        setBrouillonId(null);
         navigation.goBack();
       } else {
+        setBrouillonId(targetReportId || reportId);
         setBrouillonSaved(true);
       }
     } catch (e) {
@@ -291,7 +322,7 @@ export default function WriteReportScreen({ route, navigation }) {
   function updateSieste(id, field, value) { setSiestes(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s)); }
   function removeSieste(id) { if (siestes.length <= 1) return; setSiestes(prev => prev.filter(s => s.id !== id)); }
 
-  const s = styles(theme);
+  const s = styles(theme, insets);
 
   if (loadingData) return (
     <View style={s.center}><ActivityIndicator color={theme.primary} size="large" /></View>
@@ -531,7 +562,7 @@ export default function WriteReportScreen({ route, navigation }) {
   );
 }
 
-const styles = (theme) => StyleSheet.create({
+const styles = (theme, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
@@ -543,8 +574,13 @@ const styles = (theme) => StyleSheet.create({
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   header: {
-    backgroundColor: theme.card, borderBottomWidth: 1, borderBottomColor: theme.border,
-    paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12,
+    backgroundColor: theme.card,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+    paddingHorizontal: 16,
+    paddingTop: Math.max(12, insets.top + 12),
+    paddingBottom: 12,
+    zIndex: 2,
   },
   backBtn: { marginBottom: 8 },
   backText: { color: theme.primary, fontSize: 14, fontWeight: '600' },

@@ -7,10 +7,16 @@ import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import { useRealtime } from '../../lib/useRealtime';
 
+function getLocalDateKey(date = new Date()) {
+  const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return localDate.toISOString().split('T')[0];
+}
+
 export default function DashboardScreen({ navigation }) {
   const { theme, t } = useTheme();
   const [profile, setProfile] = useState(null);
   const [creche, setCreche] = useState(null);
+  const [enfants, setEnfants] = useState([]);
   const [stats, setStats] = useState({ enfants: 0, rapports: 0, absents: 0, presents: 0 });
   const [rapportsDates, setRapportsDates] = useState({});
   const [totalEnfants, setTotalEnfants] = useState(0);
@@ -36,13 +42,15 @@ export default function DashboardScreen({ navigation }) {
           .from('creches').select('*').eq('id', prof.creche_id).single();
         setCreche(cr);
 
-        const { data: enfants } = await supabase
+        const { data: enfantsData } = await supabase
           .from('enfants').select('*').eq('creche_id', prof.creche_id);
-        const enfantIds = (enfants || []).map(e => e.id);
-        const nbEnfants = enfants?.length || 0;
+        const enfantsList = enfantsData || [];
+        setEnfants(enfantsList);
+        const enfantIds = enfantsList.map(e => e.id);
+        const nbEnfants = enfantsList.length;
         setTotalEnfants(nbEnfants);
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
 
         const { data: rapportsAujourdhui } = await supabase
           .from('rapports').select('*').eq('date', today).eq('brouillon', false)
@@ -58,7 +66,7 @@ export default function DashboardScreen({ navigation }) {
 
         const rapportesIds = rapportsDuJour.map(r => r.enfant_id);
         const presentsIds = new Set((presData || []).filter(p => p.present === true).map(p => p.enfant_id));
-        setEnfantsPresents((enfants || []).filter(e => presentsIds.has(e.id)));
+        setEnfantsPresents(enfantsList.filter(e => presentsIds.has(e.id)));
         const horaires = {};
         rapportsDuJour.forEach(r => {
           horaires[r.enfant_id] = {
@@ -67,7 +75,7 @@ export default function DashboardScreen({ navigation }) {
           };
         });
         setHorairesDuJour(horaires);
-        const nonRaportes = (enfants || []).filter(e => presentsIds.has(e.id) && !rapportesIds.includes(e.id));
+        const nonRaportes = enfantsList.filter(e => presentsIds.has(e.id) && !rapportesIds.includes(e.id));
         setEnfantsARapporter(nonRaportes);
 
         if (enfantIds.length > 0) {
@@ -131,7 +139,7 @@ export default function DashboardScreen({ navigation }) {
   }
 
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = getLocalDateKey(today);
   const days = getDaysInMonth(currentMonth);
   const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   const s = styles(theme);
@@ -196,6 +204,54 @@ export default function DashboardScreen({ navigation }) {
         </View>
       </View>
 
+      {enfants.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>🕐 Horaires du jour</Text>
+          {['petite', 'grande'].map((sectionKey) => {
+            const sectionLabel = sectionKey === 'petite' ? 'Petite section' : 'Grande section';
+            const sectionChildren = enfants.filter((enfant) => (enfant.section === 'grande' ? 'grande' : 'petite') === sectionKey);
+            if (sectionChildren.length === 0) return null;
+
+            return (
+              <View key={sectionKey} style={s.scheduleGroup}>
+                <Text style={s.scheduleGroupTitle}>{sectionLabel}</Text>
+                <View style={s.scheduleGroupDivider} />
+                {sectionChildren.map((enfant, index) => {
+                  const horaires = horairesDuJour[enfant.id] || {};
+                  const isPresent = (enfantsPresents || []).some((item) => item.id === enfant.id);
+                  const statusText = !isPresent ? 'Absent' : `${horaires.arrivee || '—'} → ${horaires.sortie || '—'}`;
+
+                  return (
+                    <View key={enfant.id} style={[s.scheduleRow, index > 0 && { marginTop: 8 }]}>
+                      <View style={[s.avatar, { backgroundColor: isPresent ? theme.primarySoft : theme.border }]}>
+                        <Text style={[s.avatarText, { color: isPresent ? theme.primary : theme.textSecondary }]}>
+                          {enfant.prenom?.charAt(0)?.toUpperCase() || '?' }
+                        </Text>
+                      </View>
+
+                      <View style={s.scheduleNameWrap}>
+                        <Text style={s.enfantNom}>{enfant.prenom}</Text>
+                        <Text style={s.scheduleStatus}>{isPresent ? 'Présent' : 'Absent'}</Text>
+                      </View>
+
+                      <View style={s.timeColumn}>
+                        <Text style={s.timeLabel}>Arrivée</Text>
+                        <Text style={s.timeValue}>{horaires.arrivee || '—'}</Text>
+                      </View>
+
+                      <View style={s.timeColumn}>
+                        <Text style={s.timeLabel}>Sortie</Text>
+                        <Text style={s.timeValue}>{horaires.sortie || '—'}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {/* Rapports à rédiger */}
       {enfantsARapporter.length > 0 && (
         <View style={s.section}>
@@ -234,30 +290,6 @@ export default function DashboardScreen({ navigation }) {
             >
               <Text style={s.voirPlusText}>+{enfantsARapporter.length - 4} autres enfants →</Text>
             </TouchableOpacity>
-          )}
-
-          {enfantsPresents.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>Horaires du jour</Text>
-              {enfantsPresents.map((enfant, index) => {
-                const horaires = horairesDuJour[enfant.id] || {};
-                return (
-                  <View key={enfant.id} style={[s.enfantRow, index === 0 && { borderTopWidth: 0 }]}>
-                    <View style={[s.avatar, { backgroundColor: theme.primarySoft }]}>
-                      <Text style={[s.avatarText, { color: theme.primary }]}>
-                        {enfant.prenom?.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.enfantNom}>{enfant.prenom} {enfant.nom}</Text>
-                      <Text style={s.enfantSection}>
-                        Arrivée {horaires.arrivee || '—'} · Sortie {horaires.sortie || '—'}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
           )}
         </View>
       )}
@@ -367,6 +399,9 @@ const styles = (theme) => StyleSheet.create({
     alignItems: 'center', marginBottom: 12,
   },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+  scheduleGroup: { marginTop: 14 },
+  scheduleGroupTitle: { fontSize: 12, fontWeight: '700', color: theme.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 },
+  scheduleGroupDivider: { height: 1, backgroundColor: theme.border, marginBottom: 8 },
   seeAll: { fontSize: 12, color: theme.primary, fontWeight: '600' },
   enfantRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -379,6 +414,17 @@ const styles = (theme) => StyleSheet.create({
   avatarText: { fontSize: 15, fontWeight: '700' },
   enfantNom: { fontSize: 14, fontWeight: '600', color: theme.text },
   enfantSection: { fontSize: 11, color: theme.textSecondary, marginTop: 1 },
+  scheduleRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: theme.background, borderRadius: 12,
+    borderWidth: 1, borderColor: theme.border,
+    padding: 10,
+  },
+  scheduleNameWrap: { flex: 1, marginLeft: 8 },
+  scheduleStatus: { fontSize: 10, color: theme.textSecondary, marginTop: 1 },
+  timeColumn: { minWidth: 68, alignItems: 'center', marginLeft: 8 },
+  timeLabel: { fontSize: 9, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 },
+  timeValue: { fontSize: 12, fontWeight: '700', color: theme.text, marginTop: 2 },
   todoTag: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   todoTagText: { fontSize: 10, fontWeight: '700' },
   voirPlusBtn: { paddingTop: 10, alignItems: 'center' },
